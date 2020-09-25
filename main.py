@@ -1,15 +1,10 @@
 
-# TODO could maybe make a data a class of its own.
-# TODO this file is imported to treeview  for data because that will eventually be its own file
+# TODO json serialization,
 # TODO Remove deleted items from dictionary
 # TODO ScrollArea size -> possibly going to make a graphics scene
 # TODO treeview row hieght max size
 # TODO allow of clicking after loading?
 # TODO JS Children element still doesn't have any uses.
-# TODO get value  from combobox, the GetItem method needs an overhaul
-# TODO How items are put into the treeview needs to be changed, importData needs to be used once in the end
-# TODO might have use treewidget rather than treeview.
-#  https://stackoverflow.com/questions/23316078/how-do-i-get-a-whole-row-from-a-multi-column-pyqt-qtreeview?rq=1 or look at importData in more detail
 
 import os
 
@@ -268,7 +263,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.scrollarea = QtWidgets.QScrollArea()
         self.treemodel_view = view(my_data)
         self.treemodel_view.tree.clicked.connect(self.change_image)
-        # self.treemodel_view.tree.customContextMenuRequested.connect(self.treemodel_view.openMenu)
 
         self.image_label = QtWidgets.QLabel()
         self.image_label.setMinimumHeight(350)
@@ -288,44 +282,44 @@ class MainWindow(QtWidgets.QMainWindow):
         _text = ''
         image_link = ''
 
-        selected_tree_list = []
-        for ix in self.treemodel_view.tree.selectedIndexes():
-            text = ix.data()
-            selected_tree_list.append(text)
-
-        for row in my_data:
-            if str(row['unique_id']) == str(selected_tree_list[-1]):
-                print("SELECTED ROW: ", row)
-                _text = '\n' + row['value']
-                image_link = row['image_link']
-
-        if image_link != '':
-            image.loadFromData(requests.get(image_link).content)
-            self.image_label.setPixmap(QtGui.QPixmap(image))
-        else:
-            self.image_label.setText(_text)
+        index = self.treemodel_view.tree.selectedIndexes()[0]
+        val = index.model().itemFromIndex(index)
+        seen = self.treemodel_view.seen
+        for k, v in seen.items():
+            if v == val:
+                for row in my_data:
+                    if str(row['unique_id']) == str(k):
+                        print("SELECTED ROW: ", row)
+                        _text = '\n' + row['value']
+                        image_link = row['image_link']
+        # selected_tree_list = []
+        # for ix in self.treemodel_view.tree.selectedIndexes():
+        #     text = ix.data()
+        #     selected_tree_list.append(text)
+        #
+        # for row in my_data:
+        #     if str(row['unique_id']) == str(selected_tree_list[-1]):
+        #         print("SELECTED ROW: ", row)
+        #         _text = '\n' + row['value']
+        #         image_link = row['image_link']
+        try:
+            if image_link != '':
+                try:
+                    image.loadFromData(requests.get(image_link).content)
+                except: print('really messed up getting the image.')
+                self.image_label.setPixmap(QtGui.QPixmap(image))
+            else:
+                self.image_label.setText(_text)
+        except: print('messed up getting the image.')
 
     def return_xpath(self, xpath, text, link, parent, image, childcount):
         browser_url = self.browser.url().toString()
-
-        url_list = [row['link'] for row in my_data]
+        url_list = [row['link'] for row in my_data if row['link'] is not None]
         tree_dict = {'unique_id': None}
-
-        if browser_url not in url_list:  # ADD MAIN CHILD
-            tree_dict['unique_id'] = my_data[-1]['unique_id']+1
-            tree_dict['parent_id'] = 1
-            tree_dict['url_name'] = browser_url
-            tree_dict['xpath'] = xpath
-            tree_dict['value'] = text
-            tree_dict['link'] = link
-            tree_dict['parent_link'] = parent
-            tree_dict['image_link'] = image
-            tree_dict['childcount'] = childcount
-
-        for index, row in enumerate(my_data):
-            if row['link'] == browser_url:
-                tree_dict['unique_id'] = my_data[-1]['unique_id'] + 1
-                tree_dict['parent_id'] = row['unique_id']
+        try:
+            if browser_url not in url_list:  # ADD MAIN CHILD
+                tree_dict['unique_id'] = my_data[-1]['unique_id']+1
+                tree_dict['parent_id'] = 1
                 tree_dict['url_name'] = browser_url
                 tree_dict['xpath'] = xpath
                 tree_dict['value'] = text
@@ -333,12 +327,26 @@ class MainWindow(QtWidgets.QMainWindow):
                 tree_dict['parent_link'] = parent
                 tree_dict['image_link'] = image
                 tree_dict['childcount'] = childcount
-                tree_dict['childcount'] = childcount
 
-        if tree_dict['unique_id'] is not None:
-            my_data.append(tree_dict)
+            for index, row in enumerate(my_data):
+                if row['link'] == browser_url:
+                    tree_dict['unique_id'] = my_data[-1]['unique_id'] + 1
+                    tree_dict['parent_id'] = row['unique_id']
+                    tree_dict['url_name'] = browser_url
+                    tree_dict['xpath'] = xpath
+                    tree_dict['value'] = text
+                    tree_dict['link'] = link
+                    tree_dict['parent_link'] = parent
+                    tree_dict['image_link'] = image
+                    tree_dict['childcount'] = childcount
+                    tree_dict['childcount'] = childcount
 
-        self.treemodel_view.importData(my_data)
+            if tree_dict['unique_id'] is not None:
+                my_data.append(tree_dict)
+        except: print('messed up here')
+
+        # self.treemodel_view.importData(my_data)
+        self.treemodel_view.add_row(tree_dict)
         self.treemodel_view.tree.expandAll()
 
     def highlight_xpath(self):
