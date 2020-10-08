@@ -20,7 +20,7 @@ from jinja2 import Template
 
 from treeview_model import view
 
-from data_file import my_data, my_dict_data
+from data_file import my_data
 
 import requests
 
@@ -281,7 +281,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree_window_widget.layout().setContentsMargins(0, 0, 0, 0)
 
         self.scrollarea = QtWidgets.QScrollArea()
-        self.treemodel_view = view(my_data)
+        # self.treemodel_view = view(data)
+        self.treemodel_view = view()
         self.treemodel_view.tree.clicked.connect(self.change_image)
 
         self.image_label = QtWidgets.QLabel()
@@ -324,46 +325,44 @@ class MainWindow(QtWidgets.QMainWindow):
     def return_xpath(self, xpath, text, link, class_name, image, name_tag):
         browser_url = self.browser.url().toString()
 
-        url_list = [row['link'] for row in my_data if row['link'] is not None]  # if link is not in the list, add it as a main page to scrape. So need something for current page. TODO use sets for duplicates
-        # my_url_list = [row['link'] for row in my_dict_data.values() if row['link'] is not None]
-        # print(url_list == my_url_list)
-        tree_dict = {'unique_id': None}
+        url_list = [row['link'] for row in my_data if row['link'] is not None]
+        tree_item = {'unique_id': None}
 
-        try:
-            if browser_url not in url_list:  # ADD MAIN CHILD
-                tree_dict['unique_id'] = my_data[-1]['unique_id']+1
-                tree_dict['parent_id'] = 1
-                tree_dict['url_name'] = browser_url
-                tree_dict['xpath'] = xpath
-                tree_dict['value'] = text
-                tree_dict['link'] = link
-                tree_dict['class_name'] = class_name
-                tree_dict['image_link'] = image
-                tree_dict['childcount'] = name_tag
+        # try:
+        if browser_url not in url_list:  # ADD MAIN CHILD
+            tree_item['unique_id'] = my_data[-1]['unique_id']+1
+            tree_item['parent_id'] = 1
+            tree_item['url_name'] = browser_url
+            tree_item['xpath'] = xpath
+            tree_item['value'] = text
+            tree_item['link'] = link
+            tree_item['class_name'] = class_name
+            tree_item['image_link'] = image
+            tree_item['childcount'] = name_tag
 
-            for index, row in enumerate(my_data):  # if the selected link is the current page, add current page as a child to the page of the selected link.
-                if row['link'] == browser_url:
-                    tree_dict['unique_id'] = my_data[-1]['unique_id'] + 1
-                    tree_dict['parent_id'] = row['unique_id']
-                    tree_dict['url_name'] = browser_url
-                    tree_dict['xpath'] = xpath
-                    tree_dict['value'] = text
-                    tree_dict['link'] = link
-                    tree_dict['class_name'] = class_name
-                    tree_dict['image_link'] = image
-                    tree_dict['childcount'] = name_tag
+        for index, row in enumerate(my_data):  # if previously selected link is the current page, add it as a child.
+            if row['link'] == browser_url:
+                tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
+                tree_item['parent_id'] = row['unique_id']
+                tree_item['url_name'] = browser_url
+                tree_item['xpath'] = xpath
+                tree_item['value'] = text
+                tree_item['link'] = link
+                tree_item['class_name'] = class_name
+                tree_item['image_link'] = image
+                tree_item['childcount'] = name_tag
 
-            if tree_dict['unique_id'] is not None:
-                self.treemodel_view.add_row(tree_dict)
-                self.treemodel_view.tree.expandAll()
-                url_list.clear()
+        if tree_item['unique_id'] is not None:
+            self.treemodel_view.create_row(tree_dict=tree_item)
+            self.treemodel_view.tree.expandAll()
+            url_list.clear()
 
-                # my_data.append(tree_dict)
-                # my_dict_data[next(reversed(my_dict_data.keys())) + 1] = tree_dict
+                # my_data.append(tree_item)
+                # my_dict_data[next(reversed(my_dict_data.keys())) + 1] = tree_item
 
-        except: print('messed up here')
+        # except: print('messed up here')
 
-        # self.treemodel_view.add_row(tree_dict)
+        # self.treemodel_view.add_row(tree_item)
         # self.treemodel_view.tree.expandAll()
         # url_list.clear()
 
