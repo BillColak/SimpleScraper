@@ -1,16 +1,13 @@
 
 # TODO json serialization,
 # TODO Remove deleted items from dictionary
-# TODO ScrollArea size -> possibly going to make a graphics scene
-# TODO allow of clicking after loading?
-# TODO refactor JS Children element count.
 # TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates.
 # TODO highlight should be toggled on or off.
 # TODO add back the footer, change the app name to simpescraper, not the webpage its on.
-# TODO debug detItem
-# TODO xpath highlight of what will be scraped
-# TODO insertup and delete debugging
-# TODO Overhaul serialization. turn ym_data to dict?
+# TODO DELETE treeview row
+# TODO show if the op is good or not by marking it with colors on treeview and give different color on browser?
+# TODO prepare columns, intellisense.
+
 
 import os
 
@@ -24,14 +21,14 @@ from data_file import my_data
 
 import requests
 
-from string import Template as form_template
-
+from string import Template as formTemplate
 
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 HOME = 'https://vancouver.craigslist.org/search/cto'
+# HOME = 'https://www.kijiji.ca/b-cars-trucks/calgary/new__used/c174l1700199a49'
 
 
 class Element(QtCore.QObject):
@@ -52,7 +49,7 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
         super(WebEnginePage, self).__init__(parent)
         self.loadFinished.connect(self.onLoadFinished)
         self._objects = []
-        self._scripts = []
+        self._scripts = []   # only usage? more than one script?
 
     def add_object(self, obj):
         self._objects.append(obj)
@@ -91,11 +88,11 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
             self.runJavaScript(Template(_script).render(objects=objects.keys()))
             for obj in self._objects:
                 if isinstance(obj, Element):
-                    self.runJavaScript(obj.script())
+                    self.runJavaScript(obj.script())  # TODO run JS: add script to object...
 
 
 class Helper(Element):
-    xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str)
+    xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str, str)
 
     def script(self):
         js = ""
@@ -103,29 +100,71 @@ class Helper(Element):
         if file.open(QtCore.QIODevice.ReadOnly):
             content = file.readAll()
             file.close()
-            js = content.data().decode()
+            js = content.data().decode()  # TODO doesn't work because it doesn't return anything other than string
 
         js += """
-        document.addEventListener('click', function(e) {
-            e = e || window.event;
-            var target = e.target || e.srcElement;
-            var xpath = Elements.DOMPath.xPath(target, false);
-            var childCount = target.tagName;
-            var text = target.innerText;
-            var link = target.href;
-            var parent = target.className;
-            var image = target.getAttribute("src");
-            {{name}}.receive_xpath(xpath, text, link, parent, image, childCount);
-        }, false);"""
+            function getElementAttrs(el) {
+              return [].slice.call(el.attributes).map((attr) => {
+                return {
+                  name: attr.name,
+                  value: attr.value
+                }
+              });
+            }
+            document.addEventListener('click', function(e) {
+                e = e || window.event;
+                var target = e.target || e.srcElement;
+                var xpath = Elements.DOMPath.xPath(target, false);
+                var localname = target.localName;
+                var text = target.innerText;
+                var class_name = target.className;
+                var image = target.getAttribute("src");
+                var allAttrs = getElementAttrs(target);
+                var onlyAttrNames = allAttrs.map(attr => attr.name).toString();
+                var onlyAttrValues = allAttrs.map(attr => attr.value).toString();
+                {{name}}.receive_xpath(onlyAttrNames,onlyAttrValues, xpath, localname, text, class_name, image);
+            }, false);"""
         return Template(js).render(name=self.name)
-    # var childCount = target.parentElement.childElementCount;
-    # var childCount = target.parentNode.childElementCount;
-    # var parent = target.parentNode.href;
-    # var parent = target.className;
 
-    @QtCore.pyqtSlot(str, str, str, str, str, str)
-    def receive_xpath(self, xpath, text, link, parent, image, childcount):
-        self.xpathClicked.emit(xpath, text, link, parent, image, childcount)
+    @QtCore.pyqtSlot(str, str, str, str, str, str, str)
+    def receive_xpath(self, names, values, xpath, localname, text, class_name, image):
+        self.xpathClicked.emit(names, values, xpath, localname, text, class_name, image)
+
+# class Helper(Element):
+#     xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str)
+#
+#     def script(self):
+#         js = ""
+#         file = QtCore.QFile(os.path.join(CURRENT_DIR, "xpath_from_element.js"))
+#         if file.open(QtCore.QIODevice.ReadOnly):
+#             content = file.readAll()
+#             file.close()
+#             js = content.data().decode()
+#
+#         js += """
+#         document.addEventListener('click', function(e) {
+#             e = e || window.event;
+#             var target = e.target || e.srcElement;
+#             var xpath = Elements.DOMPath.xPath(target, false);
+#             var childCount = target.localName;
+#             var text = target.innerText;
+#             var link = target.href;
+#             var parent = target.className;
+#             var image = target.getAttribute("src");
+#             {{name}}.receive_xpath(xpath, text, link, parent, image, childCount);
+#         }, false);"""
+#         return Template(js).render(name=self.name)
+#     # var childCount = target.parentElement.childElementCount;
+#     # var childCount = target.parentNode.childElementCount;
+#     # var parent = target.parentNode.href;
+#     # var parent = target.className;
+#     # var parent = target.textContent;
+#     # var childCount = target.tagName;
+#     #var childCount = target.localName;
+#
+#     @QtCore.pyqtSlot(str, str, str, str, str, str)
+#     def receive_xpath(self, xpath, text, link, parent, image, childcount):
+#         self.xpathClicked.emit(xpath, text, link, parent, image, childcount)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -160,7 +199,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # BROWSER
         self.browser = QtWebEngineWidgets.QWebEngineView()
         self.page = WebEnginePage()
-        self.page.add_object(self.xpath_helper)
+        self.page.add_object(self.xpath_helper)  # TODO ADD OBJECTS to the list
         self.browser.setPage(self.page)
 
         self.browser.urlChanged.connect(self.update_urlbar)
@@ -306,14 +345,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         index = self.treemodel_view.tree.selectedIndexes()[0]
         val = index.model().itemFromIndex(index)
-        for k, v in self.treemodel_view.seen.items():
-            if v == val:  # if selected item is in self.seen:
-                for row in my_data:
-                    if str(row['unique_id']) == str(k):
-                        print("SELECTED ROW: ", row)
-                        _text = '\n\n' + row['value'] + '\n'
-                        if row['image_link'] != '':
-                            image_link = row['image_link']
+        for item in my_data:
+            if item['QItem'] == val:
+                print("SELECTED ROW: ", item)
+                _text = '\n\n' + item['value'] + '\n'
+                if item['image_link'] != '':
+                    image_link = item['image_link']
+
         try:
             if image_link != '':
                 image.loadFromData(requests.get(image_link).content)
@@ -322,85 +360,102 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.image_label.setText(_text)
         except: print('messed up getting the image.')
 
-    def return_xpath(self, xpath, text, link, class_name, image, name_tag):
-        browser_url = self.browser.url().toString()
+    def return_xpath(self, names, values, xpath, localname, text, class_name, image):
+        n = str(names).split(",")
+        v = str(values).split(",")
+        d = dict(zip(n, v))
 
-        url_list = [row['link'] for row in my_data if row['link'] is not None]
-        tree_item = {'unique_id': None}
+        element_path = localname + '.' + class_name.replace(' ', '.')
+        for name in n:
+            element_path += '['+name.replace(' ', '.')+']'
+        print(element_path)
 
-        # try:
-        if browser_url not in url_list:  # ADD MAIN CHILD
-            tree_item['unique_id'] = my_data[-1]['unique_id']+1
-            tree_item['parent_id'] = 1
-            tree_item['url_name'] = browser_url
-            tree_item['xpath'] = xpath
-            tree_item['value'] = text
-            tree_item['link'] = link
-            tree_item['class_name'] = class_name
-            tree_item['image_link'] = image
-            tree_item['childcount'] = name_tag
+    def xpath_builder(self, level, path_item, elements):
+        path_item = str(path_item).split('/')
+        if int(level) > 0:
+            element_path = '[' + ' and '.join([f'normalize-space(@{key})="{value.strip()}"' for key, value in elements.items()]) + ']'
+            depth = "/".join(path_item[int(level):])  # TODO reverse this when using arrow and take care of indexing error.
+            depth += element_path
+            return '//' + depth
 
-        for index, row in enumerate(my_data):  # if previously selected link is the current page, add it as a child.
-            if row['link'] == browser_url:
-                tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
-                tree_item['parent_id'] = row['unique_id']
-                tree_item['url_name'] = browser_url
-                tree_item['xpath'] = xpath
-                tree_item['value'] = text
-                tree_item['link'] = link
-                tree_item['class_name'] = class_name
-                tree_item['image_link'] = image
-                tree_item['childcount'] = name_tag
+    # def return_xpath(self, xpath, text, link, class_name, image, name_tag):
+    #     print('xpath: ',xpath,'text: ',text,'link: ',link,'class_name: ',class_name,'image: ',image,'name_tag: ',name_tag)
+        # browser_url = self.browser.url().toString()
+        # url_list = [row['link'] for row in my_data if row['link'] is not None]
+        # tree_item = {'unique_id': None}
+        #
+        # if browser_url not in url_list:  # ADD MAIN CHILD
+        #     tree_item['unique_id'] = my_data[-1]['unique_id']+1
+        #     tree_item['parent_id'] = 1
+        #     tree_item['url_name'] = browser_url
+        #     tree_item['xpath'] = xpath
+        #     tree_item['value'] = text
+        #     tree_item['link'] = link
+        #     tree_item['class_name'] = class_name
+        #     tree_item['image_link'] = image
+        #     tree_item['name_tag'] = name_tag
+        #
+        # for index, row in enumerate(my_data):  # if previously selected link is the current page, add it as a child.
+        #     if row['link'] == browser_url:
+        #         tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
+        #         tree_item['parent_id'] = row['unique_id']
+        #         tree_item['url_name'] = browser_url
+        #         tree_item['xpath'] = xpath
+        #         tree_item['value'] = text
+        #         tree_item['link'] = link
+        #         tree_item['class_name'] = class_name
+        #         tree_item['image_link'] = image
+        #         tree_item['name_tag'] = name_tag
+        #
+        # if tree_item['unique_id'] is not None:
+        #     self.treemodel_view.create_row(tree_dict=tree_item)
+        #     self.treemodel_view.tree.expandAll()
+        #     url_list.clear()
 
-        if tree_item['unique_id'] is not None:
-            self.treemodel_view.create_row(tree_dict=tree_item)
-            self.treemodel_view.tree.expandAll()
-            url_list.clear()
 
-                # my_data.append(tree_item)
-                # my_dict_data[next(reversed(my_dict_data.keys())) + 1] = tree_item
-
-        # except: print('messed up here')
-
-        # self.treemodel_view.add_row(tree_item)
-        # self.treemodel_view.tree.expandAll()
-        # url_list.clear()
 
     def highlight_xpath(self):
-        self.treemodel_view.transverse_tree()
-        highlight_js = form_template("""elements = document.getElementsByClassName(${item});
-                                for (var i = 0; i < elements.length; i++) {
-                                elements[i].style.backgroundColor="#FDFF47";
-                                }""")
+        # TODO this is suppose to show u what u are scraping especially with xpath traversal. Also make the traversal
+        #  reversed start with lower restrictions and increase them to be more specific.
+        # the issue with this is how are you going to traverse in js?
 
-        for row in my_data:
+        highlight_js = formTemplate("""var item = document.querySelectorAll('${item}');
+                                                item.forEach((e)=>{
+                                                    e.style.backgroundColor = '#FDFF47';
+                                                    });""")
+
+        for row in my_data:  # TODO should not be using my_data but row selection instead
             if self.browser.url().toString() == row['url_name']:
-                if int(row['operation']) == 1:
-                    self.page.runJavaScript(highlight_js.substitute(item='"'+row['class_name']+'"'))
+                if int(row['combobox'].getComboValue()) == 1:  # change color for operation / pagination.
+                    name_tag, class_name = row['name_tag'].lower(), row['class_name'].strip().replace(' ', '.')
+                    query_ = ".".join((name_tag, class_name))
+                    # TODO kijiji next page; also a more robust querying
+                    self.page.runJavaScript(highlight_js.substitute(item=query_))
                 else:
                     self.page.runJavaScript(f"""document.evaluate('{row['xpath']}', document, null,
                     XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.style.backgroundColor = "#FDFF47";""",
                                             )
 
+        # self.treemodel_view.transverse_tree()
+        # highlight_js = form_template("""elements = document.getElementsByClassName(${item});
+        #                         for (var i = 0; i < elements.length; i++) {
+        #                         elements[i].style.backgroundColor="#FDFF47";
+        #                         }""")
+        #
+        # for row in my_data:
+        #     if self.browser.url().toString() == row['url_name']:
+        #         if int(row['operation']) == 1:
+        #             self.page.runJavaScript(highlight_js.substitute(item='"'+row['class_name']+'"'))
+        #         else:
+        #             self.page.runJavaScript(f"""document.evaluate('{row['xpath']}', document, null,
+        #             XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.style.backgroundColor = "#FDFF47";""",
+        #                                     )
 
     def run_scraper(self):
-        # print("COMBOX: ")
-        # for k,v in self.treemodel_view.combodict.items():
-        #     print(k,v)
-
-        # print("SEEN: ")
-        # for k, v in self.treemodel_view.seen.items():  # This gives weird error when deleting rows and calling v.data(0)
-        #     print(k, v.data(0))
-
         # self.treemodel_view.transverse_tree()
-
         print('MY_DATA: ')
-        for d in my_data[1:]:
+        for d in my_data:
             print(d)
-
-        # print('MY_DICT_DATA: ')
-        # for k, v in my_dict_data.items():
-        #     print(k, v)
 
 
 if __name__ == "__main__":
