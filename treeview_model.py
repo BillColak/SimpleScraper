@@ -41,7 +41,7 @@ class view(QWidget):
         layout.setContentsMargins(0,0,0,0)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Web Site', 'Value', 'XPath', 'Operation', 'IntelliSense'])
+        self.model.setHorizontalHeaderLabels(['Web Site', 'Value', 'XPath', 'Operation'])
         self.tree.header().setSectionResizeMode(QHeaderView.Stretch)
         # self.tree.header().setSectionResizeMode(QHeaderView.Interactive)
 
@@ -105,7 +105,7 @@ class view(QWidget):
                 QStandardItem(tree_dict['value']),
                 QStandardItem(tree_dict['xpath']),
                 comboItem,
-                QStandardItem()
+                # QStandardItem()
             ])
             tree_dict['QItem'] = parent.child(parent.rowCount() - 1)
 
@@ -220,19 +220,20 @@ class view(QWidget):
 
     # Function to Delete item
     def TreeItem_Delete(self, item_one):
-        deletion_list = []
-        if item_one is not None:
-            for index, row in enumerate(my_data):
-                if row['QItem'] == item_one:
-                    deletion_list.append(row['unique_id'])
-            for index, row in enumerate(my_data):
-                if row['parent_id'] in deletion_list:
-                    deletion_list.append(row['unique_id'])
-            print(deletion_list)
-            for index, row in enumerate(my_data):
-                for i in deletion_list:
-                    if row['unique_id'] == i:
-                        print('this is fucking bullshit')
+        pass
+        # deletion_list = []
+        # if item_one is not None:
+        #     for index, row in enumerate(my_data):
+        #         if row['QItem'] == item_one:
+        #             deletion_list.append(row['unique_id'])
+        #     for index, row in enumerate(my_data):
+        #         if row['parent_id'] in deletion_list:
+        #             deletion_list.append(row['unique_id'])
+        #     print(deletion_list)
+        #     for index, row in enumerate(my_data):
+        #         for i in deletion_list:
+        #             if row['unique_id'] == i:
+        #                 print('this is fucking bullshit')
 
                     # unique_id = row['unique_id']
                     # x = my_data.pop(index)
