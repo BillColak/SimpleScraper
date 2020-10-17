@@ -29,8 +29,6 @@ class MyDelegate(QStyledItemDelegate):
 
 
 class view(QWidget):
-
-    # def __init__(self, data):
     def __init__(self):
         super(view, self).__init__()
         self.tree = QTreeView(self)
@@ -50,15 +48,9 @@ class view(QWidget):
         self.tree.setModel(self.model)
         self.font = QFont("Arial", 12)
         self.tree.setFont(self.font)
-        xoxo = QStandardItem('xx')
-
-        # self.seen = dict()
-        # self.combodict = {}
         self.create_row(my_data[0])
 
     def create_row(self, tree_dict=None, item_one=None, row=None):
-        # so basically only memory items are added here?
-
         if tree_dict is None:
             combobox = comboTree(self)
             parent = item_one.parent()
@@ -220,58 +212,45 @@ class view(QWidget):
 
     # Function to Delete item
     def TreeItem_Delete(self, item_one):
-        pass
-        # deletion_list = []
-        # if item_one is not None:
-        #     for index, row in enumerate(my_data):
-        #         if row['QItem'] == item_one:
-        #             deletion_list.append(row['unique_id'])
-        #     for index, row in enumerate(my_data):
-        #         if row['parent_id'] in deletion_list:
-        #             deletion_list.append(row['unique_id'])
-        #     print(deletion_list)
-        #     for index, row in enumerate(my_data):
-        #         for i in deletion_list:
-        #             if row['unique_id'] == i:
-        #                 print('this is fucking bullshit')
+        item = self.delete_list(my_data, item_one)
+        self.delete(my_data, item)
+        item_one.parent().removeRow(item_one.row())
 
-                    # unique_id = row['unique_id']
-                    # x = my_data.pop(index)
-                    # # print('deleted item: ', x)
-                    # for idx, rw in enumerate(my_data):
-                    #     if rw['parent_id'] == unique_id:
-                    #         x = my_data.pop(idx)
-                            # print('deleted child: ', x)
+    def delete_list(self, tree, node):  # only works because parent elements come before children.
+        dl = []
+        for item in tree:
+            if item['QItem'] == node:
+                dl.append(item['unique_id'])
+            if item['parent_id'] in dl:
+                dl.append(item['unique_id'])
+        return dl
 
-                    # print('found the item: delete item and all children!')
-            # if item_one.hasChildren():
-            #     for i in range(item_one.rowCount()):
-            #         childitem = item_one.child(i)
-            #         if childitem != None:
-            #             for k, v in list(self.seen.items()):
-            #                 if v == childitem:
-            #                     for index, row in enumerate(my_data):
-            #                         if row['unique_id'] == k:
-            #                             x = my_data.pop(index)
-            #                     del self.seen[k], self.combodict[k]
-            #
-            # for k, v in list(self.seen.items()):
-            #     if v == item_one:
-            #         for index, row in enumerate(my_data):
-            #             if row['unique_id'] == k:
-            #                 x = my_data.pop(index)
-            #                 print('item deleted')
-            #         del self.seen[k], self.combodict[k]
-
-        # item_one.parent().removeRow(item_one.row())
+    def delete(self, tree, nodes):
+        t = [item for item in tree if item['unique_id'] not in nodes]
+        del tree[:]
+        tree.extend(t)
 
     def transverse_tree(self):
+        # for item in my_data[1:]:
+        #     for i in range(item['QItem'].rowCount()):
+        #         for j in range(3):
+        #             childitem = item['QItem'].child(i, j)
+        #             if childitem != None:
+        #                 if j == 0:
+        #                     item['url_name'] = childitem.data(0)
+        #                 if j == 1:
+        #                     item['value'] = childitem.data(0)
+        #                 if j == 2:
+        #                     item['xpath'] = childitem.data(0)
+        # ----------------------------------------------
+        #     print(item)
+
         tree_list = []
         for i in range(self.model.rowCount()):
             item = self.model.item(i)
             level = 0
             self.GetItem(item, level, tree_list)
-
+        #
         # for j in tree_list:
         #     for i in my_data:
         #         if str(i['unique_id']) == str(j['unique_id']):
@@ -291,11 +270,13 @@ class view(QWidget):
                 url_name = ' '
                 value = ' '
                 xpath = ' '
-                row_id = ' '
-                id = 0  # This id only get the item relative to the parent
-                for i in range(item.rowCount()):
-                    childrow = item.child(i)
-                    id = id + 1
+                # row_id = ' '
+                # id = 0  # This id only get the item relative to the parent
+                # for node in my_data:
+                # for i in range(item.rowCount()):
+                for i, row in enumerate(my_data):
+                    # id = id + 1
+                    # childrow = item.child(i)
                     for j in reversed([0, 1, 2, 3]):  # parent.columnCount()
                         tree_dict = {}
                         childitem = item.child(i, j)
@@ -312,20 +293,18 @@ class view(QWidget):
                                 xpath = childitem.data(0)
                             else:
                                 xpath = xpath
-                            if j == 3:
-                                row_id = id
-                            else:
-                                row_id = row_id
+                            # if j == 3:
+                            #     row_id = childitem.getComboValue(self)
+                            # else:
+                            #     row_id = row_id
                             if j == 0:
-                                for k, v in self.seen.items():
-                                    if v == childrow:
-                                        # tree_dict['operation'] = self.combodict[k].getComboValue()
-                                        tree_dict['unique_id'] = k
-                                tree_dict['parent_id'] = level
+                                # for k, v in self.seen.items():
+                                #     if v == childrow:
+                                #         tree_dict['unique_id'] = k
+                                # tree_dict['parent_id'] = row_id
                                 tree_dict['url_name'] = url_name
                                 tree_dict['value'] = value
                                 tree_dict['xpath'] = xpath
                                 tree_list.append(tree_dict)
                             self.GetItem(childitem, level, tree_list)
                 return tree_list
-

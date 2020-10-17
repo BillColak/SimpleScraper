@@ -1,7 +1,6 @@
 # TODO dynamically generated pages like kijiji auto
-# TODO json serialization,
-# TODO Remove deleted items from dictionary
-# TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates.
+# TODO json serialization
+# TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates. check node_editor_window.
 # TODO highlight should be toggled on or off.
 # TODO add back the footer, change the app name to simpescraper, not the webpage its on.
 # TODO DELETE treeview row
@@ -9,10 +8,7 @@
 # TODO prepare columns, Intellisense.
 # TODO you have to hold the click button for kijiji....
 
-
-
-
-# TODO NOTE: DON'T BE DELICATE WITH THE CODE! FUCK IT UP THE ASS!!!! <--- Such as intellisense BS.
+# TODO NOTE: SCRAPER IS ALL YOURS refer to project CL. -> convert to CSV.
 
 
 import os
@@ -42,15 +38,10 @@ class Element(QtCore.QObject):
     def __init__(self, name, parent=None):
         super(Element, self).__init__(parent)
         self._name = name  # = 'xpath_helper'
-        # self._value = value
 
     @property
     def name(self):
         return self._name
-
-    # @property
-    # def value(self):
-    #     return self._name
 
     def script(self):
         return ""
@@ -62,7 +53,6 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
         self.loadFinished.connect(self.onLoadFinished)
         self._objects = []  # Helper object
         self._scripts = []   # only usage? more than one script?
-
 
     def add_object(self, obj):
         self._objects.append(obj)
@@ -107,7 +97,6 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
 
 class Helper(Element):  # this is the object
     xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str, str, str)
-    # js_exec = QtCore.pyqtSignal(str)
 
     def script(self):
         js = ""
@@ -148,10 +137,6 @@ class Helper(Element):  # this is the object
     def receive_xpath(self, names, values, xpath, local_name, text, class_name, image, link):
         self.xpathClicked.emit(names, values, xpath, local_name, text, class_name, image, link)
 
-    # @QtCore.pyqtSlot(str)
-    # def receive_js(self, value):
-    #     self.js_exec.emit(value)
-
 
 class LeftClick(Element):
     js_exec = QtCore.pyqtSignal(str)
@@ -186,10 +171,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Simple Scraper")
         self.setWindowIcon(QtGui.QIcon(os.path.join('images', 'icon.ico')))
         self.setGeometry(450, 150, 1650, 950)
-        # self.xpath_helper = Helper("xpath_helper")
-        # self.xpath_helper.xpathClicked.connect(self.return_xpath)
-        # self.left_click = LeftClick("left_click")
-        # self.left_click.js_exec.connect(self.return_left_click)
         self.UI()
         self.show()
         self.level = 1
@@ -209,9 +190,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.stackedlay.addWidget(self.tree_window_widget)
         self.setCentralWidget(central_widget)
 
-    # def leftClickEvent(self):
-    #     self.page.add_object(self.left_click)
-
     def QtBrowser(self):
         self.browserwindow = QtWidgets.QWidget()
         self.browserwindow.setLayout(QtWidgets.QVBoxLayout())
@@ -222,11 +200,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.xpath_helper = Helper("xpath_helper")
         self.xpath_helper.xpathClicked.connect(self.return_xpath)
 
-        # self.left_click = LeftClick("left_click")
-        # self.left_click.js_exec.connect(self.return_left_click)
-
         self.page.add_object(self.xpath_helper)
-        # self.page.add_object(self.left_click)
         self.browser.setPage(self.page)
 
         self.browser.urlChanged.connect(self.update_urlbar)
@@ -303,6 +277,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.intellisense_icon = QtWidgets.QAction(QtGui.QIcon('images/purple-cube.svg'), 'Intellisense', self)
         navtb.addAction(self.intellisense_icon)
+        self.intellisense_icon.triggered.connect(self.treemodel_view.transverse_tree)
 
         self.run = QtWidgets.QAction(QtGui.QIcon('images/play-hot.png'), 'Run', self)
         navtb.addAction(self.run)
@@ -366,41 +341,41 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree_window_widget.layout().addWidget(self.treemodel_view)
 
     def change_image(self):
-        image = QtGui.QImage()
-        _text = ''
-        image_link = ''
-
-        index = self.treemodel_view.tree.selectedIndexes()[0]
-        selected_row = index.model().itemFromIndex(index)
-        for item in my_data:
-            if item['QItem'] == selected_row:
-                print("SELECTED ROW: ", item)
-                html_page = xpath_root(resp(item['url_name']))
-                element_xpath, query_, parent_localname = xpath_builder(item['xpath'], item['attributes'], item['local_name'],
-                                                                item['class_name'], level=self.level, multi_item=False)
-                item_value = return_element_list_by_xpath(html_page, element_xpath, attribute='/text()')
-                print(item_value)
-                # _text = '\n\n' + item['value'] + '\n'
-                # _text = '\n\n' + item_value + '\n'
-                if item['image_link'] != '':
-                    image_link = item['image_link']
-
-        try:
-            if image_link != '':
-                image.loadFromData(resp(image_link))
-                self.image_label.setPixmap(QtGui.QPixmap(image))
-            else:
-                self.image_label.setText(_text)
-        except: print('messed up getting the image.')
+        pass
+        # image = QtGui.QImage()
+        # _text = ''
+        # image_link = ''
+        #
+        # index = self.treemodel_view.tree.selectedIndexes()[0]
+        # selected_row = index.model().itemFromIndex(index)
+        # for item in my_data:
+        #     if item['QItem'] == selected_row:
+        #         print("SELECTED ROW: ", item)
+        #         html_page = xpath_root(resp(item['url_name']))
+        #         element_xpath, query_, parent_localname = xpath_builder(item['xpath'], item['attributes'], item['local_name'],
+        #                                                         item['class_name'], level=self.level, multi_item=False)
+        #         item_value = return_element_list_by_xpath(html_page, element_xpath, attribute='/text()')
+        #         print(item_value)
+        #         # _text = '\n\n' + item['value'] + '\n'
+        #         # _text = '\n\n' + item_value + '\n'
+        #         if item['image_link'] != '':
+        #             image_link = item['image_link']
+        #
+        # try:
+        #     if image_link != '':
+        #         image.loadFromData(resp(image_link))
+        #         self.image_label.setPixmap(QtGui.QPixmap(image))
+        #     else:
+        #         self.image_label.setText(_text)
+        # except: print('messed up getting the image.')
 
     def return_xpath(self, names, values, xpath, local_name, text, class_name, image, link):
-        # self.browser.customMenuAction(names)
         if names or values:
             attributes = dict(zip(str(names).split(","), str(values).split(
                 ",")))
         else:
             attributes = None
-        # print(attributes)
+        print(attributes)
         browser_url = self.browser.url().toString()
         url_list = [row['link'] for row in my_data if row['link'] is not None]
         tree_item = {'unique_id': None}
@@ -434,9 +409,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.treemodel_view.create_row(tree_dict=tree_item)
             self.treemodel_view.tree.expandAll()
             url_list.clear()
-
-    def return_left_click(self, names):
-        print('LEFTCLICK: ', names)
 
     def highlight_xpath(self):
         highlight_js = formTemplate("""var item = document.querySelectorAll('${item}');
@@ -478,6 +450,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.highlight_xpath()
 
     def run_scraper(self):
+        # ajsdaskdjkajds
         print('MY_DATA: ')
         for d in my_data:
             print(d)

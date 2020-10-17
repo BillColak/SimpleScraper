@@ -128,6 +128,8 @@ def single_item(path: str) -> str:
 
 
 def multi_item(local_name: str, attributes: dict) -> tuple:
+    """ This functions returns xpath to select all html elements with
+     similar attributes and the javascript to highlight them"""
     attributes_ = attributes.copy()
 
     js = Template("""
