@@ -1,5 +1,5 @@
-import sys
-from collections import deque
+# import sys
+# from collections import deque
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -11,11 +11,9 @@ from data_file import my_data
 class comboTree(QComboBox):
     def __init__(self, parent):
         super().__init__(parent)
-        self.addItems(['Item', 'Multi-Item', 'Link', 'Multi-link', 'Pagination'])
-        # self.currentIndexChanged.connect(self.getComboValue)
+        self.addItems(['Item', 'Multi-Item', 'Pagination', 'Follow-Link'])
 
     def getComboValue(self):
-        # print(self.currentIndex(), self.currentText())
         return self.currentIndex()
 
 
@@ -39,9 +37,8 @@ class view(QWidget):
         layout.setContentsMargins(0,0,0,0)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Web Site', 'Value', 'XPath', 'Operation'])
+        self.model.setHorizontalHeaderLabels(['Web Site', 'Value', 'XPath', 'Operation-Type'])
         self.tree.header().setSectionResizeMode(QHeaderView.Stretch)
-        # self.tree.header().setSectionResizeMode(QHeaderView.Interactive)
 
         self.tree.setItemDelegate(MyDelegate(self.tree))
         self.tree.header().setDefaultAlignment(Qt.AlignCenter)
@@ -55,7 +52,7 @@ class view(QWidget):
             combobox = comboTree(self)
             parent = item_one.parent()
 
-            url_name = QStandardItem('xx')
+            url_name = QStandardItem('Column ' + str(my_data[-1]['unique_id']))
             value = QStandardItem('xx')
             xpath = QStandardItem('xx')
             comboItem = QStandardItem()
@@ -86,14 +83,16 @@ class view(QWidget):
             unique_id = tree_dict['unique_id']
             if unique_id == 1:
                 parent = self.model.invisibleRootItem()
+                column = QStandardItem(tree_dict['url_name'])
             else:
                 parent_id = tree_dict['parent_id']
+                column = QStandardItem(tree_dict['column_name'])
                 for item in my_data:
                     if item['unique_id'] == parent_id:
                         parent = item['QItem']
             comboItem = QStandardItem()
             parent.appendRow([
-                QStandardItem(tree_dict['url_name']),
+                column,
                 QStandardItem(tree_dict['value']),
                 QStandardItem(tree_dict['xpath']),
                 comboItem,
@@ -111,8 +110,8 @@ class view(QWidget):
                 my_data.append(tree_dict)
         self.tree.expandAll()
 
-    # Function to save populate treeview with a dictionary
     def importData(self, my_data, root=None):  # note: good for loading a save file
+        """Function to save populate treeview with a dictionary"""
         pass
         # print('IMPORT DATA:   ')
         # self.model.setRowCount(0)
@@ -144,38 +143,38 @@ class view(QWidget):
         #     print(parent.child(parent.rowCount() - 1).data(0))
         #     print(self.seen)
 
-    # Function to add right click menu to treeview item
     def openMenu(self, position):
-            indexes = self.sender().selectedIndexes()
-            mdlIdx = self.tree.indexAt(position)
+        """Function to add right click menu to treeview item"""
+        indexes = self.sender().selectedIndexes()
+        mdlIdx = self.tree.indexAt(position)
 
-            if not mdlIdx.isValid():
-                return
-            item = self.model.itemFromIndex(mdlIdx)
-            if len(indexes) > 0:
-                level = 0
-                index = indexes[0]
-                if index.isValid():
-                    item_one = self.model.itemFromIndex(indexes[0])
-                while index.parent().isValid():
-                    index = index.parent()
-                    level += 1
-            else:
-                level = 0
-            right_click_menu = QMenu()
-            act_add = right_click_menu.addAction(self.tr("Add Child Item"))
-            act_add.triggered.connect(partial(self.TreeItem_Add, item_one))
-            if item.parent() != None:
-                insert_up = right_click_menu.addAction(self.tr("Insert Item Above"))
-                insert_up.triggered.connect(partial(self.TreeItem_InsertUp, item_one))
-                insert_down = right_click_menu.addAction(self.tr("Insert Item Below"))
-                insert_down.triggered.connect(partial(self.TreeItem_InsertDown, item_one))
-                act_del = right_click_menu.addAction(self.tr("Delete Item"))
-                act_del.triggered.connect(partial(self.TreeItem_Delete, item_one))
-            right_click_menu.exec_(self.sender().viewport().mapToGlobal(position))
+        if not mdlIdx.isValid():
+            return
+        item = self.model.itemFromIndex(mdlIdx)
+        if len(indexes) > 0:
+            level = 0
+            index = indexes[0]
+            if index.isValid():
+                item_one = self.model.itemFromIndex(indexes[0])
+            while index.parent().isValid():
+                index = index.parent()
+                level += 1
+        else:
+            level = 0
+        right_click_menu = QMenu()
+        act_add = right_click_menu.addAction(self.tr("Add Child Item"))
+        act_add.triggered.connect(partial(self.TreeItem_Add, item_one))
+        if item.parent() != None:
+            insert_up = right_click_menu.addAction(self.tr("Insert Item Above"))
+            insert_up.triggered.connect(partial(self.TreeItem_InsertUp, item_one))
+            insert_down = right_click_menu.addAction(self.tr("Insert Item Below"))
+            insert_down.triggered.connect(partial(self.TreeItem_InsertDown, item_one))
+            act_del = right_click_menu.addAction(self.tr("Delete Item"))
+            act_del.triggered.connect(partial(self.TreeItem_Delete, item_one))
+        right_click_menu.exec_(self.sender().viewport().mapToGlobal(position))
 
-    # # Function to add child item to treeview item
     def TreeItem_Add(self, item_one):
+        """Function to add child item to treeview item"""
         self.create_row(item_one=item_one)
         # unique_id = my_data[-1]['unique_id'] + 1
         # url_name = QStandardItem('xx')
@@ -200,18 +199,18 @@ class view(QWidget):
         #         tree_dict['parent_id'] = k
         # my_data.append(tree_dict)
 
-    # Function to Insert sibling item above to treeview item
     def TreeItem_InsertUp(self, item_one):
+        """Function to Insert sibling item above to treeview item"""
         current_row = item_one.row()
         self.create_row(item_one=item_one, row=current_row)
 
-    # Function to Insert sibling item above to treeview item
     def TreeItem_InsertDown(self, item_one):
+        """Function to Insert sibling item above to treeview item"""
         current_row = item_one.row() + 1
         self.create_row(item_one=item_one, row=current_row)
 
-    # Function to Delete item
     def TreeItem_Delete(self, item_one):
+        """Function to Delete item"""
         item = self.delete_list(my_data, item_one)
         self.delete(my_data, item)
         item_one.parent().removeRow(item_one.row())
@@ -231,77 +230,45 @@ class view(QWidget):
         tree.extend(t)
 
     def transverse_tree(self):
-        # for item in my_data[1:]:
-        #     for i in range(item['QItem'].rowCount()):
-        #         for j in range(3):
-        #             childitem = item['QItem'].child(i, j)
-        #             if childitem != None:
-        #                 if j == 0:
-        #                     item['url_name'] = childitem.data(0)
-        #                 if j == 1:
-        #                     item['value'] = childitem.data(0)
-        #                 if j == 2:
-        #                     item['xpath'] = childitem.data(0)
-        # ----------------------------------------------
-        #     print(item)
-
         tree_list = []
         for i in range(self.model.rowCount()):
             item = self.model.item(i)
             level = 0
             self.GetItem(item, level, tree_list)
-        #
-        # for j in tree_list:
-        #     for i in my_data:
-        #         if str(i['unique_id']) == str(j['unique_id']):
-        #             i['operation'] = self.combodict[i['unique_id']].getComboValue()
-        #             i['url_name'] = j['url_name']
-        #             i['value'] = j['value']
-        #             i['xpath'] = j['xpath']
 
         print("Transverse Tree: ")
         for row in tree_list:
             print(row)
 
-    def GetItem(self, item, level, tree_list):   # Does not represent parent accurately
+    def GetItem(self, item, level, tree_list):   # TODO, also use keyboard hot keys
         if item != None:
             if item.hasChildren():
                 level = level + 1
                 url_name = ' '
                 value = ' '
                 xpath = ' '
-                # row_id = ' '
-                # id = 0  # This id only get the item relative to the parent
-                # for node in my_data:
-                # for i in range(item.rowCount()):
-                for i, row in enumerate(my_data):
-                    # id = id + 1
+                for i, row in enumerate(my_data[level:]):
                     # childrow = item.child(i)
-                    for j in reversed([0, 1, 2, 3]):  # parent.columnCount()
+                    for j in reversed([0, 1, 2, 3]):
                         tree_dict = {}
                         childitem = item.child(i, j)
                         if childitem != None:
                             if j == 0:
                                 url_name = childitem.data(0)
+                                row['url_name'] = childitem.data(0)
                             else:
                                 url_name = url_name
                             if j == 1:
                                 value = childitem.data(0)
+                                row['value'] = childitem.data(0)
                             else:
                                 value = value
                             if j == 2:
                                 xpath = childitem.data(0)
+                                row['xpath'] = childitem.data(0)
                             else:
                                 xpath = xpath
-                            # if j == 3:
-                            #     row_id = childitem.getComboValue(self)
-                            # else:
-                            #     row_id = row_id
                             if j == 0:
-                                # for k, v in self.seen.items():
-                                #     if v == childrow:
-                                #         tree_dict['unique_id'] = k
-                                # tree_dict['parent_id'] = row_id
                                 tree_dict['url_name'] = url_name
                                 tree_dict['value'] = value
                                 tree_dict['xpath'] = xpath

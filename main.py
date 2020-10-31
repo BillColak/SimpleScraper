@@ -7,13 +7,16 @@
 # TODO show if the op is good or not by marking it with colors on treeview and give different color on browser?
 # TODO prepare columns, Intellisense.
 # TODO you have to hold the click button for kijiji....
-
-# TODO NOTE: SCRAPER IS ALL YOURS refer to project CL. -> convert to CSV.
-
+# TODO if it opens a new tab go to that web page.
+# TODO if you do end up using scrapy, uninstall libraries that can cause problems in name spacing.
+# TODO customise the highlight button to also work as a radio button.
+# DUPLICATES = [randrange(100) for _ in range(1_000_000)]
+#list(dict.fromkeys(DUPLICATES))
+# #
 
 import os
 
-from PyQt5 import QtCore, QtWidgets, QtWebEngineWidgets, QtWebChannel, QtGui
+from PyQt5 import QtCore, QtWidgets, QtGui, QtWebEngineWidgets, QtWebChannel
 
 from jinja2 import Template
 
@@ -21,17 +24,31 @@ from treeview_model import view
 
 from data_file import my_data
 
-from scrape import resp, xpath_root, xpath_builder, return_element_list_by_xpath
+from automaton_menu import MenuBar
 
-from string import Template as formTemplate
+# from scrape import single_item, multi_item, resp
 
+# from urllib.parse import urljoin
+
+from functools import partial
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
+DEBUG = False
 
-HOME = 'https://vancouver.craigslist.org/search/cto'
-# HOME = 'https://www.kijiji.ca/b-cars-trucks/calgary/new__used/c174l1700199a49'
-# HOME = 'https://www.kijijiautos.ca/cars/suv-crossover/'
+WEBSCRAPERIO = 'https://webscraper.io/test-sites/e-commerce/static'
+CRAIGSLIST = 'https://vancouver.craigslist.org/search/cto'
+Kijiji = 'https://www.kijiji.ca/b-cars-trucks/calgary/new__used/c174l1700199a49'
+KIJIJIAUTO = 'https://www.kijijiautos.ca/cars/suv-crossover/#c=Suv&od=down&sb=ct&shortDescription=true'
+HOME = 'https://books.toscrape.com/'
+# HOME = 'http://quotes.toscrape.com/'
+# HOME = 'https://www.google.com/'
+
+colors = {
+    'yellow': '#FDFF47',
+    'blue': '#2896FF',
+    'white': 'white',
+}
 
 
 class Element(QtCore.QObject):
@@ -52,7 +69,7 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
         super(WebEnginePage, self).__init__(parent)
         self.loadFinished.connect(self.onLoadFinished)
         self._objects = []  # Helper object
-        self._scripts = []   # only usage? more than one script?
+        self._scripts = []  # only usage? more than one script?
 
     def add_object(self, obj):
         self._objects.append(obj)
@@ -138,44 +155,17 @@ class Helper(Element):  # this is the object
         self.xpathClicked.emit(names, values, xpath, local_name, text, class_name, image, link)
 
 
-class LeftClick(Element):
-    js_exec = QtCore.pyqtSignal(str)
-
-    def script(self):
-        js = ""
-        file = QtCore.QFile(os.path.join(CURRENT_DIR, "xpath_from_element.js"))
-        if file.open(QtCore.QIODevice.ReadOnly):
-            content = file.readAll()
-            file.close()
-            js = content.data().decode()
-
-        js += """
-            document.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-                e = e || window.event;
-                var target = e.target || e.srcElement;
-                var xpath = Elements.DOMPath.xPath(target, false);
-                {{name}}.receive_js(xpath);
-                }, false);
-                """
-        return Template(js).render(name=self.name)
-
-    @QtCore.pyqtSlot(str)
-    def receive_js(self, value):
-        self.js_exec.emit(value)
-
-
-class MainWindow(QtWidgets.QMainWindow):
+class MainWindow(MenuBar):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        self.setWindowTitle("Simple Scraper")
-        self.setWindowIcon(QtGui.QIcon(os.path.join('images', 'icon.ico')))
+        self.setWindowIcon(QtGui.QIcon(os.path.join('images', 'cubes.svg')))
         self.setGeometry(450, 150, 1650, 950)
         self.UI()
         self.show()
         self.level = 1
 
     def UI(self):
+        self.initUI()
         self.QtBrowser()
         self.stackedWidget()
         self.toolBar()
@@ -205,32 +195,33 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.browser.urlChanged.connect(self.update_urlbar)
         self.browser.loadFinished.connect(self.update_title)
-
+        profile = self.page.profile().httpUserAgent()
+        # print(profile)
         # BROWSER NAVIGATION BAR
         self.browsernavbar = QtWidgets.QWidget()
         self.browsernavbar.setLayout(QtWidgets.QHBoxLayout())
         self.browsernavbar.layout().setAlignment(QtCore.Qt.AlignHCenter)
-        self.browsernavbar.layout().setContentsMargins(0,0,0,0)
+        self.browsernavbar.layout().setContentsMargins(0, 0, 0, 0)
         self.browsernavbar.setFixedHeight(30)
 
-        back_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('icons', 'arrow-left.svg')), "Back", self)
+        back_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('images', 'arrow-left.svg')), "Back", self)
         back_btn.clicked.connect(self.browser.back)
         self.browsernavbar.layout().addWidget(back_btn)
 
-        next_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('icons', 'arrow-right.svg')), "Forward", self)
+        next_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('images', 'arrow-right.svg')), "Forward", self)
         next_btn.clicked.connect(self.browser.forward)
         self.browsernavbar.layout().addWidget(next_btn)
 
-        reload_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('icons', 'arrow-clockwise.svg')), "Reload", self)
+        reload_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('images', 'arrow-clockwise.svg')), "Reload", self)
         reload_btn.clicked.connect(self.browser.reload)
         self.browsernavbar.layout().addWidget(reload_btn)
 
-        home_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('icons', 'house-fill.svg')), "Home", self)
+        home_btn = QtWidgets.QPushButton(QtGui.QIcon(os.path.join('images', 'house-fill.svg')), "Home", self)
         home_btn.clicked.connect(self.navigate_home)
         self.browsernavbar.layout().addWidget(home_btn)
 
         self.httpsicon = QtWidgets.QLabel()
-        self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('icons', 'shield-lock-fill.svg')))
+        self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('images', 'shield-lock-fill.svg')))
         self.browsernavbar.layout().addWidget(self.httpsicon)
 
         self.urlbar = QtWidgets.QLineEdit()
@@ -246,7 +237,7 @@ class MainWindow(QtWidgets.QMainWindow):
         navtb.setIconSize(QtCore.QSize(24, 24))
         self.addToolBar(QtCore.Qt.LeftToolBarArea, navtb)
 
-        self.file = QtWidgets.QAction(QtGui.QIcon('icons/globe2.svg'), "Open File", self)
+        self.file = QtWidgets.QAction(QtGui.QIcon('images/globe2.svg'), "Open Browser", self)
         navtb.addAction(self.file)
         self.file.triggered.connect(self.window1)
         navtb.addSeparator()
@@ -261,15 +252,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.highlight.triggered.connect(self.highlight_xpath)
         navtb.addSeparator()
 
-        self.arrow_up = QtWidgets.QAction(QtGui.QIcon('images/arrow-up-circle.svg'), "Increase Restrictions", self)
-        navtb.addAction(self.arrow_up)
-        self.arrow_up.triggered.connect(self.traverse_up)
-        navtb.addSeparator()
+        # self.arrow_up = QtWidgets.QAction(QtGui.QIcon('images/arrow-up-circle.svg'), "Increase Restrictions", self)
+        # navtb.addAction(self.arrow_up)
+        # self.arrow_up.triggered.connect(self.traverse_up)
+        # navtb.addSeparator()
+        #
+        # self.arrow_down = QtWidgets.QAction(QtGui.QIcon('images/arrow-down-circle.svg'), "Decrease Restrictions", self)
+        # navtb.addAction(self.arrow_down)
+        # self.arrow_down.triggered.connect(self.traverse_down)
+        # navtb.addSeparator()
 
-        self.arrow_down = QtWidgets.QAction(QtGui.QIcon('images/arrow-down-circle.svg'), "Decrease Restrictions", self)
-        navtb.addAction(self.arrow_down)
-        self.arrow_down.triggered.connect(self.traverse_down)
-        navtb.addSeparator()
+        if DEBUG:
+            self.kijiji = QtWidgets.QAction(QtGui.QIcon('images/logo_kijiji.svg'), "Kijiji", self)
+            navtb.addAction(self.kijiji)
+            self.kijiji.triggered.connect(partial(self.navigate_to_page, Kijiji))
+            navtb.addSeparator()
+
+            self.craigslist = QtWidgets.QAction(QtGui.QIcon('images/logo_craigslist.png'), "Craigslist", self)
+            navtb.addAction(self.craigslist)
+            self.craigslist.triggered.connect(partial(self.navigate_to_page, CRAIGSLIST))
+            navtb.addSeparator()
+
+            self.webscraperio = QtWidgets.QAction(QtGui.QIcon('images/logo_white.svg'), "webscraper.io", self)
+            navtb.addAction(self.webscraperio)
+            self.webscraperio.triggered.connect(partial(self.navigate_to_page, WEBSCRAPERIO))
+            navtb.addSeparator()
+
+            self.kijiji_auto = QtWidgets.QAction(QtGui.QIcon('images/logo_kijijiauto2.png'), "Kijiji Auto", self)
+            navtb.addAction(self.kijiji_auto)
+            self.kijiji_auto.triggered.connect(partial(self.navigate_to_page, KIJIJIAUTO))
+            navtb.addSeparator()
 
         left_spacer = QtWidgets.QWidget()
         left_spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
@@ -277,15 +289,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.intellisense_icon = QtWidgets.QAction(QtGui.QIcon('images/purple-cube.svg'), 'Intellisense', self)
         navtb.addAction(self.intellisense_icon)
-        self.intellisense_icon.triggered.connect(self.treemodel_view.transverse_tree)
+        self.intellisense_icon.triggered.connect(self.inspect_element)
 
         self.run = QtWidgets.QAction(QtGui.QIcon('images/play-hot.png'), 'Run', self)
         navtb.addAction(self.run)
         self.run.triggered.connect(self.run_scraper)
 
-    def update_title(self):
+    def navigate_to_page(self, page):
+        self.browser.setUrl(QtCore.QUrl(page))
+
+    def update_title(self):  # TODO statusbar here
         title = self.browser.page().title()
-        self.setWindowTitle(title)
+        self.statusBar().showMessage(title)
 
     def navigate_home(self):
         self.browser.setUrl(QtCore.QUrl(HOME))
@@ -298,9 +313,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def update_urlbar(self, q):
         if q.scheme() == 'https':
-            self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('icons', 'shield-lock-fill.svg')))
+            self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('images', 'shield-lock-fill.svg')))
         else:
-            self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('icons', 'shield-slash.png')))
+            self.httpsicon.setPixmap(QtGui.QPixmap(os.path.join('images', 'shield-slash.png')))
 
         self.urlbar.setText(q.toString())
         self.urlbar.setCursorPosition(0)
@@ -322,7 +337,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree_window_widget.layout().setContentsMargins(0, 0, 0, 0)
 
         self.scrollarea = QtWidgets.QScrollArea()
-        # self.treemodel_view = view(data)
         self.treemodel_view = view()
         self.treemodel_view.tree.clicked.connect(self.change_image)
 
@@ -340,48 +354,43 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tree_window_widget.layout().addWidget(self.scrollarea)
         self.tree_window_widget.layout().addWidget(self.treemodel_view)
 
-    def change_image(self):
-        pass
-        # image = QtGui.QImage()
-        # _text = ''
-        # image_link = ''
-        #
-        # index = self.treemodel_view.tree.selectedIndexes()[0]
-        # selected_row = index.model().itemFromIndex(index)
-        # for item in my_data:
-        #     if item['QItem'] == selected_row:
-        #         print("SELECTED ROW: ", item)
-        #         html_page = xpath_root(resp(item['url_name']))
-        #         element_xpath, query_, parent_localname = xpath_builder(item['xpath'], item['attributes'], item['local_name'],
-        #                                                         item['class_name'], level=self.level, multi_item=False)
-        #         item_value = return_element_list_by_xpath(html_page, element_xpath, attribute='/text()')
-        #         print(item_value)
-        #         # _text = '\n\n' + item['value'] + '\n'
-        #         # _text = '\n\n' + item_value + '\n'
-        #         if item['image_link'] != '':
-        #             image_link = item['image_link']
-        #
+    def change_image(self):  # tODO
+        image = QtGui.QImage()
+        _text = ''
+        image_link = ''
+        index = self.treemodel_view.tree.selectedIndexes()[0]
+        selected_row = index.model().itemFromIndex(index)
+        for item in my_data:
+            if item['QItem'] == selected_row:
+                _text = '\n\n' + item['value'] + '\n'
+                if item['image_link'] != '':
+                    image_link = item['image_link']
         # try:
         #     if image_link != '':
-        #         image.loadFromData(resp(image_link))
+        #         image.loadFromData(resp(image_link).content)
         #         self.image_label.setPixmap(QtGui.QPixmap(image))
         #     else:
         #         self.image_label.setText(_text)
-        # except: print('messed up getting the image.')
+        # except:
+        #     print('messed up getting the image.')
 
     def return_xpath(self, names, values, xpath, local_name, text, class_name, image, link):
+
         if names or values:
-            attributes = dict(zip(str(names).split(","), str(values).split(
-                ",")))
+            attributes = dict(zip(str(names).split(","), str(values).split(",")))
         else:
             attributes = None
-        print(attributes)
+        # print(attributes)
         browser_url = self.browser.url().toString()
+        # web = urljoin(browser_url, link)
+        # print(web)
+
         url_list = [row['link'] for row in my_data if row['link'] is not None]
         tree_item = {'unique_id': None}
 
-        if browser_url not in url_list:  # ADD MAIN CHILD
-            tree_item['unique_id'] = my_data[-1]['unique_id']+1
+        if browser_url not in url_list:  #
+            tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
+            tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
             tree_item['parent_id'] = 1
             tree_item['url_name'] = browser_url
             tree_item['xpath'] = xpath
@@ -395,6 +404,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for index, row in enumerate(my_data):  # if previously selected link is the current page, add it as a child.
             if row['link'] == browser_url:
                 tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
+                tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
                 tree_item['parent_id'] = row['unique_id']
                 tree_item['url_name'] = browser_url
                 tree_item['xpath'] = xpath
@@ -411,49 +421,50 @@ class MainWindow(QtWidgets.QMainWindow):
             url_list.clear()
 
     def highlight_xpath(self):
-        highlight_js = formTemplate("""var item = document.querySelectorAll('${item}');
-                                        if(item[0]${parentNode} === '${localName}') {
-                                            item.forEach((e) => {
-                                                e.style.backgroundColor = '#FDFF47';
-                                            });
-                                        }
-                                        """)
-
-        parentnode = "".join(['.parentNode' for i in range(int(self.level)-1)]) + '.localName'
-
         for row in my_data:
             if self.browser.url().toString() == row['url_name']:
-                if int(row['combobox'].getComboValue()) == 0:  # change color for operation / pagination.
-
-                    self.page.runJavaScript(f"""document.evaluate('{row['xpath']}', document, null,
-                    XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue.style.backgroundColor = "#FDFF47";""",
-                                            )
-                elif int(row['combobox'].getComboValue()) == 1:
-                    depth, query_, parent_localname = xpath_builder(row['xpath'], row['attributes'], row['local_name'], row['class_name'], level=self.level, multi_item=True)
-                    print(depth, query_, parent_localname)
-                    self.page.runJavaScript(highlight_js.substitute(item=query_, parentNode=parentnode, localName=parent_localname))
-                else:
-                    depth, query_, parent_localname = xpath_builder(row['xpath'], row['attributes'], row['local_name'], row['class_name'], level=self.level, multi_item=False)
-                    print(depth, query_, parent_localname)
-                    self.page.runJavaScript(highlight_js.substitute(item=query_, parentNode=parentnode, localName=parent_localname))
+                if int(row['combobox'].getComboValue()) == 0:  # single_item change color for operation / pagination.
+                    pass
+                #     self.page.runJavaScript(single_item(row['xpath']))
+                # elif int(row['combobox'].getComboValue()) == 1:  # Multi_item
+                #     x = multi_item(row['local_name'], row['attributes'], row['xpath'])[0]
+                #     self.page.runJavaScript(x)
+                # elif int(row['combobox'].getComboValue()) == 2:  # single_link
+                #     self.page.runJavaScript()
+                # elif int(row['combobox'].getComboValue()) == 3:  # multi_link
+                #     self.page.runJavaScript()
+                # elif int(row['combobox'].getComboValue()) == 2:  # pagination
+                #     self.page.runJavaScript(single_item(row['xpath'], colors['blue']))
 
     def traverse_up(self):
-        # self.browser.reload()
         self.level += 1
-        # self.page.loadFinished.connect(self.highlight_xpath)
         self.highlight_xpath()
 
     def traverse_down(self):
-        # self.browser.reload()
         self.level -= 1
-        # self.page.loadFinished.connect(self.highlight_xpath)
         self.highlight_xpath()
 
     def run_scraper(self):
-        # ajsdaskdjkajds
-        print('MY_DATA: ')
-        for d in my_data:
-            print(d)
+        self.treemodel_view.transverse_tree()
+        # print('MY_DATA: ')
+        # for d in my_data:
+        #     print(d)
+
+    def inspect_element(self):
+        if self.page.onLoadFinished:
+            self.page.runJavaScript(
+                """
+            document.body.addEventListener('mouseenter', function(e) {
+            e = e || window;
+            const item = e.target;
+            item.addEventListener('mouseover', function (event) {
+                event.target.style.backgroundColor = '#21cdff';
+            })
+            item.addEventListener('mouseout', function (event) {
+                event.target.style.backgroundColor = '';
+            })
+            }, false);
+            """)
 
 
 if __name__ == "__main__":
