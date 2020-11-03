@@ -26,6 +26,8 @@ from data_file import my_data
 
 from automaton_menu import MenuBar
 
+# from quotes_spider.spiders.simplespider import SimpleSpider, allowed_domains, start_urls, file_format, uri
+
 # from scrape import single_item, multi_item, resp
 
 # from urllib.parse import urljoin
@@ -113,7 +115,7 @@ class WebEnginePage(QtWebEngineWidgets.QWebEnginePage):
 
 
 class Helper(Element):  # this is the object
-    xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str, str, str)
+    xpathClicked = QtCore.pyqtSignal(str, str, str, str, str, str, str, str, str)
 
     def script(self):
         js = ""
@@ -138,6 +140,7 @@ class Helper(Element):  # this is the object
                 var target = e.target || e.srcElement;
                 var xpath = Elements.DOMPath.xPath(target, false);
                 var local_name = target.localName;
+                var parent_name = target.parentNode.localName;
                 var text = target.innerText;
                 var class_name = target.className;
                 var image = target.getAttribute("src");
@@ -145,14 +148,14 @@ class Helper(Element):  # this is the object
                 var allAttrs = getElementAttrs(target);
                 var onlyAttrNames = allAttrs.map(attr => attr.name).toString();
                 var onlyAttrValues = allAttrs.map(attr => attr.value).toString();
-                {{name}}.receive_xpath(onlyAttrNames,onlyAttrValues, xpath, local_name, text, class_name, image, link);
+                {{name}}.receive_xpath(onlyAttrNames,onlyAttrValues, xpath, local_name, text, class_name, image, link, parent_name);
             }, false);
             """
         return Template(js).render(name=self.name)
 
-    @QtCore.pyqtSlot(str, str, str, str, str, str, str, str)
-    def receive_xpath(self, names, values, xpath, local_name, text, class_name, image, link):
-        self.xpathClicked.emit(names, values, xpath, local_name, text, class_name, image, link)
+    @QtCore.pyqtSlot(str, str, str, str, str, str, str, str, str)
+    def receive_xpath(self, names, values, xpath, local_name, text, class_name, image, link, parent_name):
+        self.xpathClicked.emit(names, values, xpath, local_name, text, class_name, image, link, parent_name)
 
 
 class MainWindow(MenuBar):
@@ -374,13 +377,13 @@ class MainWindow(MenuBar):
         # except:
         #     print('messed up getting the image.')
 
-    def return_xpath(self, names, values, xpath, local_name, text, class_name, image, link):
+    def return_xpath(self, names, values, xpath, local_name, text, class_name, image, link, parent_name):
 
         if names or values:
             attributes = dict(zip(str(names).split(","), str(values).split(",")))
         else:
             attributes = None
-        # print(attributes)
+        # print(parent_name)
         browser_url = self.browser.url().toString()
         # web = urljoin(browser_url, link)
         # print(web)
@@ -390,8 +393,8 @@ class MainWindow(MenuBar):
 
         if browser_url not in url_list:  #
             tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
-            tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
             tree_item['parent_id'] = 1
+            tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
             tree_item['url_name'] = browser_url
             tree_item['xpath'] = xpath
             tree_item['value'] = text
@@ -399,13 +402,14 @@ class MainWindow(MenuBar):
             tree_item['class_name'] = class_name
             tree_item['image_link'] = image
             tree_item['local_name'] = local_name
+            tree_item['parent_name'] = parent_name
             tree_item['attributes'] = attributes
 
         for index, row in enumerate(my_data):  # if previously selected link is the current page, add it as a child.
             if row['link'] == browser_url:
                 tree_item['unique_id'] = my_data[-1]['unique_id'] + 1
-                tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
                 tree_item['parent_id'] = row['unique_id']
+                tree_item['column_name'] = 'Column ' + str(my_data[-1]['unique_id'])
                 tree_item['url_name'] = browser_url
                 tree_item['xpath'] = xpath
                 tree_item['value'] = text
@@ -413,12 +417,14 @@ class MainWindow(MenuBar):
                 tree_item['class_name'] = class_name
                 tree_item['image_link'] = image
                 tree_item['local_name'] = local_name
+                tree_item['parent_name'] = parent_name
                 tree_item['attributes'] = attributes
 
         if tree_item['unique_id'] is not None:
-            self.treemodel_view.create_row(tree_dict=tree_item)
-            self.treemodel_view.tree.expandAll()
-            url_list.clear()
+            if tree_item not in my_data:  ##########
+                self.treemodel_view.create_row(tree_dict=tree_item)
+                self.treemodel_view.tree.expandAll()
+                url_list.clear()
 
     def highlight_xpath(self):
         for row in my_data:
@@ -446,9 +452,9 @@ class MainWindow(MenuBar):
 
     def run_scraper(self):
         self.treemodel_view.transverse_tree()
-        # print('MY_DATA: ')
-        # for d in my_data:
-        #     print(d)
+        print('MY_DATA: ')
+        for d in my_data[1:]:
+            print(d)
 
     def inspect_element(self):
         if self.page.onLoadFinished:

@@ -35,5 +35,4 @@ class SpiderItemLoader(ItemLoader):
     default_input_processor = Identity()
     default_output_processor = TakeFirst()
 
-    price = MapCompose(get_numbers)  # how to deal with this....
-
+    # price_in = MapCompose(get_numbers)  # how to deal with this....

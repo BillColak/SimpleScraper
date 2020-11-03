@@ -4,15 +4,28 @@ from quotes_spider.items import SpiderItemLoader
 from scrapy import Request
 from scrapy.shell import inspect_response
 import re
+from functools import partial
+from test_data import my_data
 
-# scrapy parse --spider=simplespider -c parse_item https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
-# https://docs.scrapy.org/en/latest/topics/loaders.html
+# TODO xpaths must be changed from full
+
+# scrapy parse --spider=simple_spider -c parse_item https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
+# scrapy parse --spider=simple_spider -c pagination https://books.toscrape.com/
+# https://stackoverflow.com/questions/16909106/scrapyin-a-request-fails-eg-404-500-how-to-ask-for-another-alternative-reque?noredirect=1&lq=1
+
 
 DEBUG = False
 allowed_domains = ['books.toscrape.com']
 start_urls = ['http://books.toscrape.com/']
+
 file_format = 'csv'
 uri = 'test.csv'
+
+# parse_link_xpath = '//h3/a/@href'
+# pagination_xpath = '//a[text()="next"]/@href'
+# output_iter_xpath = {'title': '//h1/text()', 'price': '//p[normalize-space(@class)="price_color"]/text()'}
+# command = {'parse_link_xpath': ""}
+# combodict = {'Item': 1, 'Multi-Item': 2, 'Pagination': 3, 'Follow-Link': 4, 'Follow-All-Links': 5}
 
 
 def get_numbers(value):
@@ -21,73 +34,86 @@ def get_numbers(value):
         return float(number.group())
 
 
-def test_func(val):
-    print(val)
-    return val
-
-
 class SimpleSpider(scrapy.Spider):
-
-    name = 'simple_spider'
-
-    custom_settings = {
-        'FEED_FORMAT': file_format,
-        'FEED_URI': uri
-    }
+    # name = 'simple_spider'
 
     def __init__(self, *args, **kwargs):
         super(SimpleSpider, self).__init__(*args, **kwargs)
 
-        self.allowed_domains = allowed_domains
-        self.start_urls = start_urls
-        self.func_dict = {1: self.parse_link, 2: self.parse_item}
-        # so depending on combobox callback in parse will be decided
+        # self.allowed_domains = allowed_domains
+        # self.start_urls = start_urls
 
     def parse(self, response, **kwargs):
-        # title = response.css('h1::text').get()
-        # price = get_numbers(response.css('.price_color::text').get())
-        # test_func((title, price))
+        """This function must yield a request or an item object. Also there is no purpose for the kwargs
+        they are just there to look pretty. Whoever wrote this library is a fucking dumbass."""
+        # pass
+        pagination = None
+        follow_all_links_path = None
+        item_dict = dict()
 
-        if DEBUG:
-            inspect_response(response, self)
-        else:
-            urls = response.css('h3 a::attr(href)').getall()
-            for url in urls:
-                yield response.follow(  # this assumes that a item is being hopped.
-                    url,
-                    # callback=self.parse_link,
-                    callback=self.parse_item,
-                )
+        for row in my_data:
+            if row['comboIndex'] == 2:
+                pagination = row['xpath']
 
-            next_page_url = response.xpath('//a[text()="next"]/@href').extract_first()
-            absolute_next_page_url = response.urljoin(next_page_url)
-            pagination = Request(absolute_next_page_url)
-            yield pagination
+            if row['comboIndex'] == 4:
+                follow_all_links_id = row['unique_id']
+                follow_all_links_path = row['xpath']
 
-    def parse_link(self, response):
-        if DEBUG:
-            inspect_response(response, self)
-        else:
-            urls = response.css('.image_container a::attr(href)').getall()
+                for items in my_data:
+                    if follow_all_links_id == items['parent_id']:
+                        item_dict[items.get('column_name', None)] = items.get('xpath', None)
+
+        if follow_all_links_path:
+            for i in self.parse_link(response, follow_link=follow_all_links_path, **item_dict):
+                yield i
+
+        if pagination:
+            yield self.pagination(response, page=pagination)
+
+    def parse_link(self, response, follow_link=None, **kwargs):
+        if follow_link:
+            urls = response.xpath(follow_link).getall()
             for url in urls:
                 yield response.follow(
                     url=response.urljoin(url),
-                    callback=self.parse_item,
+                    callback=partial(self.parse_item, **kwargs)
                 )
 
-    def parse_item(self, response):
-        if DEBUG:
-            inspect_response(response, self)
-        else:
-            title = response.css('h1::text').get()
-            price = get_numbers(response.css('.price_color::text').get())
-            loader = SpiderItemLoader(response=response)
-            loader.add_value('title', title)
-            loader.add_value('price', price)
-            yield loader.load_item()
+    def pagination(self, response, page=None):
+        if page:
+            next_page_url = response.xpath(page).extract_first()
+            absolute_next_page_url = response.urljoin(next_page_url)
+            return Request(absolute_next_page_url)
+
+    def parse_item(self, response, **kwargs):
+        loader = SpiderItemLoader(response=response)
+        for column, value in kwargs.items():
+            loader.add_value(column, response.xpath(value).get())
+        yield loader.load_item()
+
+
+class SpiderRunner(SimpleSpider):
+    name = 'simple_spider'
+
+    custom_settings = {
+        'FEED_FORMAT': 'csv',
+        'FEED_URI': 'test.csv'
+    }
+
+    def __init__(self, *args, **kwargs):
+        super(SpiderRunner, self).__init__(*args, **kwargs)
+        self.allowed_domains = allowed_domains
+        self.start_urls = start_urls
+        # self.executioner = partial(self.parse, **output_iter_xpath)
+        # self.parse_link()
+        # self.pagination()
+        # self.parse_item()
+        # item types
 
 
 if __name__ == '__main__':
     process = CrawlerProcess()
-    process.crawl(SimpleSpider)
+    process.crawl(SpiderRunner)
     process.start()
+
+

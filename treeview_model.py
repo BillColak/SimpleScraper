@@ -11,7 +11,7 @@ from data_file import my_data
 class comboTree(QComboBox):
     def __init__(self, parent):
         super().__init__(parent)
-        self.addItems(['Item', 'Multi-Item', 'Pagination', 'Follow-Link'])
+        self.addItems(['Item', 'Multi-Item', 'Pagination', 'Follow-Link', 'Follow-All-Links'])
 
     def getComboValue(self):
         return self.currentIndex()
@@ -37,7 +37,7 @@ class view(QWidget):
         layout.setContentsMargins(0,0,0,0)
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Web Site', 'Value', 'XPath', 'Operation-Type'])
+        self.model.setHorizontalHeaderLabels(['Object Name', 'Value', 'XPath', 'Object-Type'])
         self.tree.header().setSectionResizeMode(QHeaderView.Stretch)
 
         self.tree.setItemDelegate(MyDelegate(self.tree))
@@ -52,13 +52,13 @@ class view(QWidget):
             combobox = comboTree(self)
             parent = item_one.parent()
 
-            url_name = QStandardItem('Column ' + str(my_data[-1]['unique_id']))
+            column_name = QStandardItem('Column ' + str(my_data[-1]['unique_id']))
             value = QStandardItem('xx')
             xpath = QStandardItem('xx')
             comboItem = QStandardItem()
 
             if row is None:  # child
-                item_one.appendRow([url_name, value, xpath, comboItem])
+                item_one.appendRow([column_name, value, xpath, comboItem])
                 self.tree.setIndexWidget(comboItem.index(), combobox)
                 ze_childz = item_one.child(item_one.rowCount() - 1)
 
@@ -69,7 +69,7 @@ class view(QWidget):
                                      'QItem': ze_childz, 'combobox': combobox}
 
             else:  # insert up/down
-                parent.insertRow(row, [url_name, value, xpath, comboItem])
+                parent.insertRow(row, [column_name, value, xpath, comboItem])
                 self.tree.setIndexWidget(comboItem.index(), combobox)
                 ze_brodarz = parent.child(item_one.rowCount() - 1)
 
@@ -189,6 +189,7 @@ class view(QWidget):
         # combobox = comboTree(self)
         # self.combodict[unique_id] = combobox
         # self.tree.setIndexWidget(comboItem.index(), combobox)
+        # self.tree.inde
         #
         # # finding the index of the selected which is also the parent item so it can be added to my_data.
         # tree_dict = {"unique_id": unique_id, 'parent_id': None, 'url_name': 'xx', 'xpath': 'xx', 'value': 'xx', 'link': None, 'image_link': ''}
@@ -240,38 +241,47 @@ class view(QWidget):
         for row in tree_list:
             print(row)
 
-    def GetItem(self, item, level, tree_list):   # TODO, also use keyboard hot keys
-        if item != None:
+    def GetItem(self, item, level, tree_list):  # TODO
+        if item is not None:
             if item.hasChildren():
                 level = level + 1
-                url_name = ' '
+                column_name = ' '
                 value = ' '
                 xpath = ' '
+                transfer_order = {'object_name': [], 'value': [], 'xpath': [], 'object-type': [], }
                 for i, row in enumerate(my_data[level:]):
-                    # childrow = item.child(i)
-                    for j in reversed([0, 1, 2, 3]):
-                        tree_dict = {}
+                    combo_index = row['combobox'].getComboValue()
+                    row['comboIndex'] = combo_index
+                    tree_dict = {'unique_id': row['unique_id'], 'parent_id': row['parent_id'], 'comboIndex': combo_index}
+                    for j in reversed([0, 1, 2]):
                         childitem = item.child(i, j)
-                        if childitem != None:
+                        if childitem is not None:
                             if j == 0:
-                                url_name = childitem.data(0)
-                                row['url_name'] = childitem.data(0)
+                                column_name = childitem.data(0)
+                                # print(column_name)
+                                transfer_order['object_name'].append(column_name)
+                                if column_name not in transfer_order['object_name']:
+                                    row['column_name'] = column_name
                             else:
-                                url_name = url_name
+                                column_name = column_name
                             if j == 1:
                                 value = childitem.data(0)
-                                row['value'] = childitem.data(0)
+                                transfer_order['value'].append(value)
+                                if value not in transfer_order['value']:
+                                    row['value'] = value
                             else:
                                 value = value
                             if j == 2:
                                 xpath = childitem.data(0)
-                                row['xpath'] = childitem.data(0)
+                                transfer_order["xpath"].append(xpath)
+                                if xpath not in transfer_order['xpath']:
+                                    row['xpath'] = xpath
                             else:
                                 xpath = xpath
                             if j == 0:
-                                tree_dict['url_name'] = url_name
+                                tree_dict['column_name'] = column_name
                                 tree_dict['value'] = value
                                 tree_dict['xpath'] = xpath
                                 tree_list.append(tree_dict)
                             self.GetItem(childitem, level, tree_list)
-                return tree_list
+            return tree_list
