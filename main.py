@@ -1,6 +1,6 @@
 # TODO dynamically generated pages like kijiji auto
 # TODO json serialization
-# TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates. check node_editor_window.
+# TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates. check node_editor_window. : make it a json like dictionary and you can comment out the shit you dont want/
 # TODO highlight should be toggled on or off.
 # TODO add back the footer, change the app name to simpescraper, not the webpage its on.
 # TODO DELETE treeview row
@@ -10,9 +10,10 @@
 # TODO if it opens a new tab go to that web page.
 # TODO if you do end up using scrapy, uninstall libraries that can cause problems in name spacing.
 # TODO customise the highlight button to also work as a radio button.
-# DUPLICATES = [randrange(100) for _ in range(1_000_000)]
-#list(dict.fromkeys(DUPLICATES))
-# #
+# TODO make this open source so I can benefit from other peoples conributions.
+# TODO someday implement node_editor into this. Since discord should be easier.
+# overwrite the original context manager. as it still shows up before page loads.
+
 
 import os
 
@@ -24,19 +25,21 @@ from treeview_model import view
 
 from data_file import my_data
 
+# from test_data import my_data_full_path
+
 from automaton_menu import MenuBar
 
-# from quotes_spider.spiders.simplespider import SimpleSpider, allowed_domains, start_urls, file_format, uri
-
-# from scrape import single_item, multi_item, resp
-
-# from urllib.parse import urljoin
+from quotes_spider.spiders.simplespider import SpiderRunner
 
 from functools import partial
 
+from urllib.parse import urlparse
+
+import time
+
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 
-DEBUG = False
+DEBUG = True
 
 WEBSCRAPERIO = 'https://webscraper.io/test-sites/e-commerce/static'
 CRAIGSLIST = 'https://vancouver.craigslist.org/search/cto'
@@ -51,6 +54,44 @@ colors = {
     'blue': '#2896FF',
     'white': 'white',
 }
+
+
+# class WorkerSignals(QtCore.QObject):
+#     """
+#     Defines the signals available from a running worker thread.
+#
+#     data
+#         tuple of (identifier, data)
+#     """
+#     worker_signal = QtCore.pyqtSignal(tuple)
+#
+#
+# class Worker(QtCore.QRunnable):
+#     """
+#     Worker thread
+#
+#     Inherits from QRunnable to handler worker thread setup, signals
+#     and wrap-up.
+#
+#     :param worker_id: The id for this worker
+#     :param url: The url to retrieve
+#     """
+#
+#     def __init__(self, worker_id, url):
+#         super(Worker, self).__init__()
+#         self.id = worker_id
+#         self.url = url
+#
+#         self.signals = WorkerSignals()
+#
+#     @QtCore.pyqtSlot()
+#     def run(self):
+#         SpiderRunner.run_spider()
+
+        # r = requests.get(self.url)
+        #
+        # for line in r.text.splitlines():
+        #     self.signals.data.emit((self.id, line))
 
 
 class Element(QtCore.QObject):
@@ -165,7 +206,9 @@ class MainWindow(MenuBar):
         self.setGeometry(450, 150, 1650, 950)
         self.UI()
         self.show()
-        self.level = 1
+        # self.thread_pool = QtCore.QThreadPool()
+        # print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        # self.level = 1
 
     def UI(self):
         self.initUI()
@@ -199,7 +242,7 @@ class MainWindow(MenuBar):
         self.browser.urlChanged.connect(self.update_urlbar)
         self.browser.loadFinished.connect(self.update_title)
         profile = self.page.profile().httpUserAgent()
-        # print(profile)
+        print(profile)
         # BROWSER NAVIGATION BAR
         self.browsernavbar = QtWidgets.QWidget()
         self.browsernavbar.setLayout(QtWidgets.QHBoxLayout())
@@ -259,7 +302,7 @@ class MainWindow(MenuBar):
         # navtb.addAction(self.arrow_up)
         # self.arrow_up.triggered.connect(self.traverse_up)
         # navtb.addSeparator()
-        #
+
         # self.arrow_down = QtWidgets.QAction(QtGui.QIcon('images/arrow-down-circle.svg'), "Decrease Restrictions", self)
         # navtb.addAction(self.arrow_down)
         # self.arrow_down.triggered.connect(self.traverse_down)
@@ -422,6 +465,7 @@ class MainWindow(MenuBar):
 
         if tree_item['unique_id'] is not None:
             if tree_item not in my_data:  ##########
+                print(tree_item)
                 self.treemodel_view.create_row(tree_dict=tree_item)
                 self.treemodel_view.tree.expandAll()
                 url_list.clear()
@@ -442,21 +486,22 @@ class MainWindow(MenuBar):
                 # elif int(row['combobox'].getComboValue()) == 2:  # pagination
                 #     self.page.runJavaScript(single_item(row['xpath'], colors['blue']))
 
-    def traverse_up(self):
-        self.level += 1
-        self.highlight_xpath()
+    # def traverse_up(self):
+    #     self.treemodel_view.transverse_tree()
+        # print('MY_DATA: ')
+        # for d in my_data[1:]:
+        #     print(d)
 
-    def traverse_down(self):
-        self.level -= 1
-        self.highlight_xpath()
+        # self.level += 1
+        # self.highlight_xpath()
 
-    def run_scraper(self):
-        self.treemodel_view.transverse_tree()
-        print('MY_DATA: ')
-        for d in my_data[1:]:
-            print(d)
+    # def traverse_down(self):
+    #     self.level -= 1
+    #     self.highlight_xpath()
 
     def inspect_element(self):
+        # TODO import js files like python files for style points.
+        # https: // gist.github.com / oakfang / f65e10dd10992045c968
         if self.page.onLoadFinished:
             self.page.runJavaScript(
                 """
@@ -471,6 +516,31 @@ class MainWindow(MenuBar):
             })
             }, false);
             """)
+
+    def run_scraper(self):
+        self.treemodel_view.transverse_tree()
+        print('MY_DATA: ')
+        for d in my_data[1:]:
+            print(d)
+
+        print("\n\n============================INITIALIZING SPIDER============================\n\n")
+        time.sleep(3)
+        self.exec_spider()
+
+    def exec_spider(self):
+        SpiderRunner.run_spider(file_format='csv',
+                                uri='books_scraped.csv',
+                                url=my_data[1].get('url_name'),
+                                domains=urlparse(my_data[1].get('url_name')).netloc,
+                                tree_dict=my_data[1:]
+                                )
+
+    #     """This is the execute button"""
+    #     worker = Worker(n, url)
+    #     worker.signals.worker_signal.connect(self.display_output)
+    #
+    #     # Execute
+    #     self.threadpool.start(worker)
 
 
 if __name__ == "__main__":

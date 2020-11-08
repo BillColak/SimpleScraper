@@ -2,73 +2,60 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 from quotes_spider.items import SpiderItemLoader
 from scrapy import Request
-from scrapy.shell import inspect_response
 import re
-from functools import partial
-from test_data import my_data
-
-# TODO xpaths must be changed from full
-
-# scrapy parse --spider=simple_spider -c parse_item https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
-# scrapy parse --spider=simple_spider -c pagination https://books.toscrape.com/
-# https://stackoverflow.com/questions/16909106/scrapyin-a-request-fails-eg-404-500-how-to-ask-for-another-alternative-reque?noredirect=1&lq=1
+from scrapy.settings import Settings
+# from scrapy.utils.project import get_project_settings
+# from test_data import my_data, my_data_full_path, craigs_list
+# from functools import partial
 
 
-DEBUG = False
-allowed_domains = ['books.toscrape.com']
-start_urls = ['http://books.toscrape.com/']
+DEBUG = True
+# allowed_domains = ['books.toscrape.com']
+# start_urls = ['http://books.toscrape.com/']
 
-file_format = 'csv'
-uri = 'test.csv'
+# file_format = 'csv'
+# uri = 'test.csv'
 
 # parse_link_xpath = '//h3/a/@href'
 # pagination_xpath = '//a[text()="next"]/@href'
 # output_iter_xpath = {'title': '//h1/text()', 'price': '//p[normalize-space(@class)="price_color"]/text()'}
-# command = {'parse_link_xpath': ""}
 # combodict = {'Item': 1, 'Multi-Item': 2, 'Pagination': 3, 'Follow-Link': 4, 'Follow-All-Links': 5}
 
 
-def get_numbers(value):
-    if value:
-        number = re.search(r'\d+\.\d+', value)
-        return float(number.group())
-
-
 class SimpleSpider(scrapy.Spider):
-    # name = 'simple_spider'
+
+    tree_dict = None
 
     def __init__(self, *args, **kwargs):
         super(SimpleSpider, self).__init__(*args, **kwargs)
-
-        # self.allowed_domains = allowed_domains
-        # self.start_urls = start_urls
+        self.follow_all_links_path = None
+        self.item_dict = dict()
 
     def parse(self, response, **kwargs):
-        """This function must yield a request or an item object. Also there is no purpose for the kwargs
-        they are just there to look pretty. Whoever wrote this library is a fucking dumbass."""
-        # pass
-        pagination = None
-        follow_all_links_path = None
-        item_dict = dict()
+        _pagination = None
+        # follow_all_links_path = None
+        # item_dict = dict()
 
-        for row in my_data:
-            if row['comboIndex'] == 2:
-                pagination = row['xpath']
+        if self.tree_dict:
+            for row in self.tree_dict:
+                if row['comboIndex'] == 2 or row['comboIndex'] == str(2):
+                    _pagination = self.pagination_xpath(row['value'], row['attributes'], row['xpath'])
+                    if DEBUG: print('Pagination: ', _pagination)
+                if row['comboIndex'] == 4 or row['comboIndex'] == str(4):
+                    follow_all_links_id = row['unique_id']
+                    self.follow_all_links_path = self.multi_link(row['attributes'], row['xpath'])
+                    if DEBUG: print('follow_all_links_path', self.follow_all_links_path)
+                    for _items in self.tree_dict:
+                        if follow_all_links_id == _items['parent_id']:
+                            singleItem = self.single_item(_items['attributes'], _items['xpath'])
+                            if DEBUG: print('Single Item: ', singleItem)
+                            self.item_dict[_items.get('column_name', None)] = singleItem
+            if self.follow_all_links_path:
+                for i in self.parse_link(response, follow_link=self.follow_all_links_path, **self.item_dict):
+                    yield i
 
-            if row['comboIndex'] == 4:
-                follow_all_links_id = row['unique_id']
-                follow_all_links_path = row['xpath']
-
-                for items in my_data:
-                    if follow_all_links_id == items['parent_id']:
-                        item_dict[items.get('column_name', None)] = items.get('xpath', None)
-
-        if follow_all_links_path:
-            for i in self.parse_link(response, follow_link=follow_all_links_path, **item_dict):
-                yield i
-
-        if pagination:
-            yield self.pagination(response, page=pagination)
+            if _pagination:
+                yield self.pagination(response, page=_pagination)
 
     def parse_link(self, response, follow_link=None, **kwargs):
         if follow_link:
@@ -76,44 +63,123 @@ class SimpleSpider(scrapy.Spider):
             for url in urls:
                 yield response.follow(
                     url=response.urljoin(url),
-                    callback=partial(self.parse_item, **kwargs)
+                    callback=self.parse_item,
+                    meta=kwargs
                 )
 
-    def pagination(self, response, page=None):
+    @staticmethod
+    def pagination(response, page=None):
         if page:
             next_page_url = response.xpath(page).extract_first()
             absolute_next_page_url = response.urljoin(next_page_url)
             return Request(absolute_next_page_url)
 
-    def parse_item(self, response, **kwargs):
+    @staticmethod
+    def parse_item(response, **kwargs):
+        meta_items = response.request.meta.items()
         loader = SpiderItemLoader(response=response)
-        for column, value in kwargs.items():
-            loader.add_value(column, response.xpath(value).get())
+        for column, value in meta_items:
+            if column != 'depth' and column != 'download_timeout' and column != 'download_slot' and column != 'download_latency':
+                loader.add_value(column, response.xpath(value).get())
         yield loader.load_item()
+
+    @staticmethod
+    def pagination_xpath(text_value: str, attributes: dict or None, path: str) -> str:
+        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+        if attributes:
+            attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
+                            key != 'href' and key != 'style']
+            if len(attrib_xpath) > 0:
+                element_path = f'//{xpath_}/[' + ' and '.join(
+                    attrib_xpath) + f' and normalize-space(text())="{text_value}"]/@href'
+                return element_path
+            else:
+                return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
+        else:
+            return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
+
+    @staticmethod
+    def single_item(attributes: dict or None, path: str) -> str:
+        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+        if attributes:
+            attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
+                            key != 'style']
+            return f'//{xpath_}/[' + ' and '.join(attrib_xpath) + ']/text()'
+        else:
+            return f'//{xpath_}' + '/text()'
+
+    @staticmethod
+    def multi_item(attributes: dict or None, path: str) -> str:
+        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+        if attributes:
+            element_path = f'//{xpath_}/[' + ' and '.join(
+                [f'@{key}' for key in attributes.keys() if key != 'style']) + ']/text()'
+            return element_path
+        else:
+            return f'//{xpath_}/' + '/text()'
+
+    @staticmethod
+    def multi_link(attributes: dict or None, path: str) -> str:
+        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+        if attributes:
+            attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'href' and key != 'style']
+            if len(attrib_xpath) > 0:
+                return f'//{xpath_}[' + ' and '.join(attrib_xpath) + ']/@href'
+            else:
+                return f'//{xpath_}' + ' and '.join(attrib_xpath) + '/@href'
+        else:
+            return f'//{xpath_}' + '/@href'
+
+    @staticmethod
+    def get_numbers(value) -> float:
+        if value:
+            number = re.search(r'\d+\.\d+', value)
+            return float(number.group())
 
 
 class SpiderRunner(SimpleSpider):
     name = 'simple_spider'
 
-    custom_settings = {
-        'FEED_FORMAT': 'csv',
-        'FEED_URI': 'test.csv'
-    }
+    allowed_domains = []
+    start_urls = []
+
+    # custom_settings = {
+    #     'FEED_FORMAT': 'json',
+    #     'FEED_URI': 'test.json'
+    # }
 
     def __init__(self, *args, **kwargs):
         super(SpiderRunner, self).__init__(*args, **kwargs)
-        self.allowed_domains = allowed_domains
-        self.start_urls = start_urls
-        # self.executioner = partial(self.parse, **output_iter_xpath)
-        # self.parse_link()
-        # self.pagination()
-        # self.parse_item()
-        # item types
+
+    @staticmethod
+    def run_spider(file_format: str or None, uri: str or None, url, domains, tree_dict):
+        SpiderRunner.tree_dict = tree_dict
+        SpiderRunner.start_urls.append(url)
+        SpiderRunner.allowed_domains.append(domains)
+        crawler = CrawlerProcess(Settings({'FEED_FORMAT': file_format, 'FEED_URI': uri}))
+        crawler.crawl(SpiderRunner)
+        crawler.start()
+
+# if __name__ == '__main__':
+#     process = CrawlerProcess()
+#     process.crawl(SpiderRunner)
+#     process.start()
+
+# SpiderRunner.run_spider(file_format=None,
+#                         uri=None,
+#                         url='http://books.toscrape.com/',
+#                         domains='books.toscrape.com',
+#                         tree_dict=my_data_full_path)
+
+# from urllib.parse import urlparse
+# SpiderRunner.run_spider(file_format=None,
+#                         uri=None,
+#                         url=craigs_list[1].get('url_name'),
+#                         domains=urlparse(craigs_list[1].get('url_name')).netloc,
+#                         tree_dict=craigs_list
+#                         )
 
 
-if __name__ == '__main__':
-    process = CrawlerProcess()
-    process.crawl(SpiderRunner)
-    process.start()
+
 
 
