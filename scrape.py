@@ -1,6 +1,6 @@
 # import requests
 # from urllib.parse import urljoin
-# import re
+import re
 from lxml import html as lxml_html
 # from string import Template as form_Template
 
@@ -104,38 +104,45 @@ def xpath_builder(path_item, attributes, localname, class_name, level=1, multi_i
 
 
 def pagination_xpath(text_value: str, attributes: dict or None, path: str) -> str:
-    xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    xpath_ = get_string(path)
     if attributes:
-        attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if key != 'href' and key != 'style']
+        attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
+                        key != 'href' and key != 'style']
         if len(attrib_xpath) > 0:
-            element_path = f'//{xpath_}/[' + ' and '.join(attrib_xpath) + f' and normalize-space(text())="{text_value}"]/@href'
-            return element_path
+            return f'//{xpath_}[' + ' and '.join(attrib_xpath) + f' and normalize-space(text())="{text_value}"]/@href'
         else:
-            return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
+            return f'//{xpath_}[normalize-space(text())="{text_value}"]/@href'
     else:
-        return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
+        return f'//{xpath_}[normalize-space(text())="{text_value}"]/@href'
 
 
 def single_item(attributes: dict or None, path: str) -> str:
-    xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    xpath_ = get_string_item(path)
     if attributes:
-        attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if key != 'style']
-        return f'//{xpath_}/[' + ' and '.join(attrib_xpath) + ']/text()'
+        attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
+                        key != 'style']
+        if len(attrib_xpath) > 0:
+            return f'//{xpath_}[' + ' and '.join(attrib_xpath) + ']/text()'
+        else:
+            return f'//{xpath_}' + '/text()'
     else:
         return f'//{xpath_}' + '/text()'
 
 
 def multi_item(attributes: dict or None, path: str) -> str:
-    xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    xpath_ = get_string(path)
     if attributes:
-        element_path = f'//{xpath_}/[' + ' and '.join([f'@{key}' for key in attributes.keys() if key != 'style']) + ']/text()'
-        return element_path
+        attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'style']
+        if len(attrib_xpath) > 0:
+            return f'//{xpath_}/[' + ' and '.join(attrib_xpath) + ']/text()'
+        else:
+            return f'//{xpath_}' + '/text()'
     else:
-        return f'//{xpath_}/' + '/text()'
+        return f'//{xpath_}' + '/text()'
 
 
 def multi_link(attributes: dict or None, path: str) -> str:
-    xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    xpath_ = get_string(path)
     if attributes:
         attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'href' and key != 'style']
         if len(attrib_xpath) > 0:
@@ -146,33 +153,56 @@ def multi_link(attributes: dict or None, path: str) -> str:
         return f'//{xpath_}' + '/@href'
 
 
+def get_numbers(value) -> float:
+    if value:
+        number = re.search(r'\d+\.\d+', value)
+        return float(number.group())
+
+
+def get_string(value) -> str:
+    path = str(value).split('/')
+    if [i for i in ['table', 'tbody', 'tr', 'td'] if i in path]:
+        return "/".join(path[1:][-2:])
+    else:
+        if re.findall('\W', path[-1]):
+            return path[-2] + '/' + str(re.findall(r"\b[a-zA-Z]+\b", path[-1])[0])
+        else:
+            return '/'.join([i.split('[')[0] for i in path[-2:]])
+
+
+def get_string_item(value) -> str:
+    path = str(value).split('/')
+    if [i for i in ['table', 'tbody', 'tr', 'td'] if i in path]:
+        return "/".join(path[-3:])
+    else:
+        return "/".join(path[-3:-1]) + '/' + path[-1].split('[')[0]
+
 # ------------ CRAIGSLIST -------------------------
 
 # attrib = {'href': 'https://vancouver.craigslist.org/search/cto',
 #           'data-id': '7211067848', 'class': 'result-title hdrlnk', 'id': 'postid_7211067848'}
 # attrib = {'href': '/search/cto?s=120', 'class': 'button next', 'title': 'next page'}
 # url ='https://vancouver.craigslist.org/search/cto'
-#/html/body/section/form/div[3]/div[3]/span[2]/a[3]
-path_item = '/html/body/section/form/div[3]/div[3]/span[2]/a[3]'
+
+# path_item = '/html/body/section/form/div[3]/div[3]/span[2]/a[3]'
 # path_item = '/html/body/div/div/div[2]/div[2]/article/table/tbody/tr[6]/td'
-item_text = "next"
+# path_item = '/html/body/div/div/div/div/section/div[2]/div/ul/li[2]/a'
+# path_item = '/html/body/div/div/div[2]/div[2]/article/div[1]/div[2]/h1'
+# path_item = '/html/body/div/div/div/div/section/div[2]/ol/li[1]/article/h3/a'
+
+# item_text = "next"
 # attrib = {}
-attrib = None
+# attrib = None
 # attrib = {'href': 'catalogue/page-2.html'}
-element1 = pagination_xpath(item_text, attrib, path_item)
-element2 = multi_link(attrib, path_item)
-element3 = multi_item(attrib, path_item)
-element4 = single_item(attrib, path_item)
-
-print("pagination: ", element1)
-print("multi link: ", element2)
-print("multi item: ", element3)
-print("single item: ", element4)
-
-# pagination:  //li/a[normalize-space(text())="next"]/@href
-# multi link:  //h3/a/@href
-# multi item:  //h3/a[@href]/text()
-# single item:  //tr[6]/td/[normalize-space(@href)="catalogue/page-2.html"]/text()
+# element1 = pagination_xpath(item_text, attrib, path_item)
+# element2 = multi_link(attrib, path_item)
+# element3 = multi_item(attrib, path_item)
+# element4 = single_item(attrib, path_item)
+#
+# print("pagination: ", element1)
+# print("multi link: ", element2)
+# print("multi item: ", element3)
+# print("single item: ", element4)
 
 
 # ------------ KIJIJI -------------------------

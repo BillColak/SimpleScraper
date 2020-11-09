@@ -2,10 +2,10 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 from quotes_spider.items import SpiderItemLoader
 from scrapy import Request
-import re
 from scrapy.settings import Settings
+from scrape import pagination_xpath, single_item, multi_link, multi_item, get_numbers, get_string
 # from scrapy.utils.project import get_project_settings
-# from test_data import my_data, my_data_full_path, craigs_list
+from test_data import BOOKS, craigs_list
 # from functools import partial
 
 
@@ -39,15 +39,15 @@ class SimpleSpider(scrapy.Spider):
         if self.tree_dict:
             for row in self.tree_dict:
                 if row['comboIndex'] == 2 or row['comboIndex'] == str(2):
-                    _pagination = self.pagination_xpath(row['value'], row['attributes'], row['xpath'])
+                    _pagination = pagination_xpath(row['value'], row['attributes'], row['xpath'])
                     if DEBUG: print('Pagination: ', _pagination)
                 if row['comboIndex'] == 4 or row['comboIndex'] == str(4):
                     follow_all_links_id = row['unique_id']
-                    self.follow_all_links_path = self.multi_link(row['attributes'], row['xpath'])
-                    if DEBUG: print('follow_all_links_path', self.follow_all_links_path)
+                    self.follow_all_links_path = multi_link(row['attributes'], row['xpath'])
+                    if DEBUG: print('follow_links: ', self.follow_all_links_path)
                     for _items in self.tree_dict:
                         if follow_all_links_id == _items['parent_id']:
-                            singleItem = self.single_item(_items['attributes'], _items['xpath'])
+                            singleItem = single_item(_items['attributes'], _items['xpath'])
                             if DEBUG: print('Single Item: ', singleItem)
                             self.item_dict[_items.get('column_name', None)] = singleItem
             if self.follow_all_links_path:
@@ -82,59 +82,69 @@ class SimpleSpider(scrapy.Spider):
             if column != 'depth' and column != 'download_timeout' and column != 'download_slot' and column != 'download_latency':
                 loader.add_value(column, response.xpath(value).get())
         yield loader.load_item()
-
-    @staticmethod
-    def pagination_xpath(text_value: str, attributes: dict or None, path: str) -> str:
-        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
-        if attributes:
-            attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
-                            key != 'href' and key != 'style']
-            if len(attrib_xpath) > 0:
-                element_path = f'//{xpath_}/[' + ' and '.join(
-                    attrib_xpath) + f' and normalize-space(text())="{text_value}"]/@href'
-                return element_path
-            else:
-                return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
-        else:
-            return f'//{xpath_}/[normalize-space(text())="{text_value}"]/@href'
-
-    @staticmethod
-    def single_item(attributes: dict or None, path: str) -> str:
-        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
-        if attributes:
-            attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if
-                            key != 'style']
-            return f'//{xpath_}/[' + ' and '.join(attrib_xpath) + ']/text()'
-        else:
-            return f'//{xpath_}' + '/text()'
-
-    @staticmethod
-    def multi_item(attributes: dict or None, path: str) -> str:
-        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
-        if attributes:
-            element_path = f'//{xpath_}/[' + ' and '.join(
-                [f'@{key}' for key in attributes.keys() if key != 'style']) + ']/text()'
-            return element_path
-        else:
-            return f'//{xpath_}/' + '/text()'
-
-    @staticmethod
-    def multi_link(attributes: dict or None, path: str) -> str:
-        xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
-        if attributes:
-            attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'href' and key != 'style']
-            if len(attrib_xpath) > 0:
-                return f'//{xpath_}[' + ' and '.join(attrib_xpath) + ']/@href'
-            else:
-                return f'//{xpath_}' + ' and '.join(attrib_xpath) + '/@href'
-        else:
-            return f'//{xpath_}' + '/@href'
-
-    @staticmethod
-    def get_numbers(value) -> float:
-        if value:
-            number = re.search(r'\d+\.\d+', value)
-            return float(number.group())
+    #
+    # @staticmethod
+    # def pagination_xpath(text_value: str, attributes: dict or None, path: str) -> str:
+    #     xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    #     if attributes:
+    #         attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if key != 'href' and key != 'style']
+    #         if len(attrib_xpath) > 0:
+    #             return f'//{xpath_}[' + ' and '.join(attrib_xpath) + f' and normalize-space(text())="{text_value}"]/@href'
+    #         else:
+    #             return f'//{xpath_}[normalize-space(text())="{text_value}"]/@href'
+    #     else:
+    #         return f'//{xpath_}[normalize-space(text())="{text_value}"]/@href'
+    #
+    # @staticmethod
+    # def single_item(attributes: dict or None, path: str) -> str:
+    #     xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    #     if attributes:
+    #         attrib_xpath = [f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items() if key != 'style']
+    #         if len(attrib_xpath) > 0:
+    #             return f'//{xpath_}[' + ' and '.join(attrib_xpath) + ']/text()'
+    #         else:
+    #             return f'//{xpath_}' + '/text()'
+    #     else:
+    #         return f'//{xpath_}' + '/text()'
+    #
+    # @staticmethod
+    # def multi_item(attributes: dict or None, path: str) -> str:
+    #     xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    #     if attributes:
+    #         attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'style']
+    #         if len(attrib_xpath) > 0:
+    #             return f'//{xpath_}/[' + ' and '.join(attrib_xpath) + ']/text()'
+    #         else:
+    #             return f'//{xpath_}' + '/text()'
+    #     else:
+    #         return f'//{xpath_}' + '/text()'
+    #
+    # @staticmethod
+    # def multi_link(attributes: dict or None, path: str) -> str:
+    #     xpath_ = "/".join(str(path).split('/')[1:][-int(2):])
+    #     if attributes:
+    #         attrib_xpath = [f'@{key}' for key in attributes.keys() if key != 'href' and key != 'style']
+    #         if len(attrib_xpath) > 0:
+    #             return f'//{xpath_}[' + ' and '.join(attrib_xpath) + ']/@href'
+    #         else:
+    #             return f'//{xpath_}' + ' and '.join(attrib_xpath) + '/@href'
+    #     else:
+    #         return f'//{xpath_}' + '/@href'
+    #
+    # @staticmethod
+    # def get_numbers(value) -> float:
+    #     if value:
+    #         number = re.search(r'\d+\.\d+', value)
+    #         return float(number.group())
+    #
+    # @staticmethod
+    # def get_string(value) -> str:
+    #     path = str(value).split('/')
+    #     if [i for i in ['table', 'tbody', 'tr', 'td'] if i in path]:
+    #         return "/".join(path[1:][-int(2):])
+    #     else:
+    #         regex = re.findall(r"(?i)\b[a-zA-Z]+\b", value)
+    #         return "/".join(regex[1:][-int(2):])
 
 
 class SpiderRunner(SimpleSpider):
@@ -171,13 +181,15 @@ class SpiderRunner(SimpleSpider):
 #                         domains='books.toscrape.com',
 #                         tree_dict=my_data_full_path)
 
-# from urllib.parse import urlparse
-# SpiderRunner.run_spider(file_format=None,
-#                         uri=None,
-#                         url=craigs_list[1].get('url_name'),
-#                         domains=urlparse(craigs_list[1].get('url_name')).netloc,
-#                         tree_dict=craigs_list
-#                         )
+
+from urllib.parse import urlparse
+
+SpiderRunner.run_spider(file_format='csv',
+                        uri='craigslist_honda.csv',
+                        url=craigs_list[0].get('url_name'),
+                        domains=urlparse(craigs_list[0].get('url_name')).netloc,
+                        tree_dict=craigs_list
+                        )
 
 
 
