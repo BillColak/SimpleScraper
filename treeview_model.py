@@ -1,5 +1,5 @@
 # import sys
-# from collections import deque
+from collections import deque
 # from collections import defaultdict
 
 from PyQt5.QtWidgets import *
@@ -86,6 +86,9 @@ class view(QWidget):
             if unique_id == 1:
                 parent = self.model.invisibleRootItem()
                 column = QStandardItem(tree_dict['url_name'])
+                font = QFont("Arial", 12)
+                font.setBold(True)
+                column.setFont(font)
             else:
                 parent_id = tree_dict['parent_id']
                 column = QStandardItem(tree_dict['column_name'])
@@ -98,7 +101,6 @@ class view(QWidget):
                 QStandardItem(tree_dict['value']),
                 QStandardItem(tree_dict['xpath']),
                 comboItem,
-                # QStandardItem()
             ])
             QtObject = parent.child(parent.rowCount() - 1)
             tree_dict['QItem'] = QtObject
@@ -106,46 +108,24 @@ class view(QWidget):
 
             if unique_id > 1:
                 combobox = comboTree(self)
-                # tree_dict['combobox'] = combobox
+                if tree_dict.get('comboIndex'):
+                    combobox.setCurrentIndex(tree_dict['comboIndex'])
                 self.tree.setIndexWidget(comboItem.index(), combobox)
 
         if tree_dict is not None:
             if tree_dict['unique_id'] > 1:
                 my_data.append(tree_dict)
+            else:  # added this to make deserialization work.
+                my_data[0] = tree_dict
         self.tree.expandAll()
 
-    def importData(self, my_data, root=None):  # note: good for loading a save file
+    def importData(self, tree_list):
         """Function to save populate treeview with a dictionary"""
-        pass
-        # print('IMPORT DATA:   ')
-        # self.model.setRowCount(0)
-        # if root is None:
-        #     root = self.model.invisibleRootItem()
-        # # seen = {}   # List of  QStandardItem
-        # values = deque(my_data)  # it's dequeing so only show the immediate parent child relationship.
-        # while values:
-        #     value = values.popleft()
-        #     if value['unique_id'] == 1:
-        #         parent = root
-        #     else:
-        #         parent_id = value['parent_id']  # this is where you tell who the parent is...
-        #         if parent_id not in self.seen:  # if parent got popped off earlier in the traversal, add it back in.
-        #             values.append(value)
-        #             continue
-        #         parent = self.seen[parent_id]  # so there is a parent and a unique id and if they match thats where the child goes. and they match becuase thier just stupid intergers
-        #         print('Parent: ', parent.data(0))
-        #     unique_id = value['unique_id']
-        #     # id_item = QStandardItem(str(unique_id))
-        #     # id_item.setEditable(False)
-        #     parent.appendRow([
-        #         QStandardItem(value['url_name']),
-        #         QStandardItem(value['value']),
-        #         QStandardItem(value['xpath']),
-        #         # id_item
-        #     ])
-        #     self.seen[unique_id] = parent.child(parent.rowCount() - 1)  # which means, when parent id == unique id.
-        #     print(parent.child(parent.rowCount() - 1).data(0))
-        #     print(self.seen)
+        self.model.setRowCount(0)
+        values = deque(tree_list)
+        while values:
+            value = values.popleft()
+            self.create_row(tree_dict=value)
 
     def openMenu(self, position):
         """Function to add right click menu to treeview item"""
@@ -248,11 +228,6 @@ class view(QWidget):
                     row['value'] = i.get('value', 'ERROR RETRIEVING THE OBJECTS FROM TREE!')
                     row['xpath'] = i.get('xpath', 'ERROR RETRIEVING THE OBJECTS FROM TREE!')
                     row['comboIndex'] = i.get('comboIndex', 'ERROR RETRIEVING THE OBJECTS FROM TREE!')
-
-        # print("Transverse Tree: ")
-        # for row in funnel:
-        #     print(row)
-
         return funnel
 
     def GetRow(self, item, level, tree_list):
@@ -276,54 +251,3 @@ class view(QWidget):
                               }
                     tree.append(funnel)
         return tree
-
-    # def GetItem(self, item, level, tree_list):
-    #     if item is not None:
-    #         if item.hasChildren():
-    #             level = level + 1
-    #             column_name = ' '
-    #             value = ' '
-    #             xpath = ' '
-    #             combobox_index = ' '
-    #             for i, row in enumerate(my_data[level:]):
-    #                 # pseudo_tree = {'cell_id': i, **{k: v for k, v in row.items() if k != 'QItem' and k != 'combobox'}}
-    #                 for j in reversed([0, 1, 2, 3]):
-    #                     childitem = item.child(i, j)
-    #                     if childitem is not None:
-    #                         if j == 0:
-    #                             column_name = childitem.data(0)
-    #                             # pseudo_tree = {'cell_id': i,
-    #                             #                **{k: v for k, v in row.items() if k != 'QItem' and k != 'combobox'}}
-    #                         else:
-    #                             column_name = column_name
-    #                         if j == 1:
-    #                             value = childitem.data(0)
-    #                         else:
-    #                             value = value
-    #                         if j == 2:
-    #                             xpath = childitem.data(0)
-    #                         else:
-    #                             xpath = xpath
-    #                         if j == 3:
-    #                             wombo = childitem.index()
-    #                             combobox_index = self.tree.indexWidget(wombo).getComboValue()
-    #                         else:
-    #                             combobox_index = combobox_index
-    #                         if j == 0:
-    #                             # tree_dict = {k: v for k, v in row.items() if k != 'QItem' and k != 'combobox'}
-    #                             tree_dict = dict()
-    #                             # tree_dict['unique_id'] = row.get('unique_id', None)
-    #                             # tree_dict['cell_id'] = i
-    #                             # tree_dict['parent_id'] = row.get('parent_id', None)
-    #                             tree_dict['column_name'] = column_name
-    #                             tree_dict['value'] = value
-    #                             tree_dict['comboIndex'] = combobox_index
-    #                             # tree_dict['url_name'] = row.get('url_name', None)
-    #                             # tree_dict['local_name'] = row.get('local_name', None)
-    #                             # tree_dict['parent_name'] = row.get('parent_name', None)
-    #                             # tree_dict['attributes'] = row.get('attributes', None)
-    #                             tree_dict['xpath'] = xpath
-    #                             tree_list.append(tree_dict)
-    #                         self.GetItem(childitem, level, tree_list)
-    #         # print(pseudo_tree)
-    #         return tree_list

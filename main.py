@@ -1,19 +1,21 @@
+# TODO images associated with themes needed to be added to their respective css files. (honestly all themes need to be looked at)
 # TODO dynamically generated pages like kijiji auto
 # TODO json serialization
 # TODO create pyqt5 file menu, window etc.. templates for future reference. settings -> editor ->templates. check node_editor_window. : make it a json like dictionary and you can comment out the shit you dont want/
 # TODO highlight should be toggled on or off.
 # TODO add back the footer, change the app name to simpescraper, not the webpage its on.
-# TODO DELETE treeview row
 # TODO show if the op is good or not by marking it with colors on treeview and give different color on browser?
-# TODO prepare columns, Intellisense.
 # TODO you have to hold the click button for kijiji....
 # TODO if it opens a new tab go to that web page.
-# TODO if you do end up using scrapy, uninstall libraries that can cause problems in name spacing.
 # TODO customise the highlight button to also work as a radio button.
-# TODO make this open source so I can benefit from other peoples conributions.
+# release project to open source.
 # TODO someday implement node_editor into this. Since discord should be easier.
 # overwrite the original context manager. as it still shows up before page loads.
-
+# tODO https://stackoverflow.com/questions/12394184/scrapy-call-a-function-when-a-spider-quits
+# todo the app crashes when you use more than one spider.
+# TODO add to combobox: text contains -> the value.
+# TODO test out full xpath because alternative causes problems sometimes.
+# kijiji giving a 403 response.
 
 import os
 
@@ -56,37 +58,37 @@ colors = {
 }
 
 
-# class WorkerSignals(QtCore.QObject):
-#     """
-#     Defines the signals available from a running worker thread.
-#
-#     data
-#         tuple of (identifier, data)
-#     """
-#     worker_signal = QtCore.pyqtSignal(tuple)
-#
-#
-# class Worker(QtCore.QRunnable):
-#     """
-#     Worker thread
-#
-#     Inherits from QRunnable to handler worker thread setup, signals
-#     and wrap-up.
-#
-#     :param worker_id: The id for this worker
-#     :param url: The url to retrieve
-#     """
-#
-#     def __init__(self, worker_id, url):
-#         super(Worker, self).__init__()
-#         self.id = worker_id
-#         self.url = url
-#
-#         self.signals = WorkerSignals()
-#
-#     @QtCore.pyqtSlot()
-#     def run(self):
-#         SpiderRunner.run_spider()
+class WorkerSignals(QtCore.QObject):
+    """
+    Defines the signals available from a running worker thread.
+
+    data
+        tuple of (identifier, data)
+    """
+    worker_signal = QtCore.pyqtSignal(tuple)
+
+
+class Worker(QtCore.QRunnable):
+    """
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals
+    and wrap-up.
+
+    :param worker_id: The id for this worker
+    :param url: The url to retrieve
+    """
+
+    def __init__(self, worker_id, url):
+        super(Worker, self).__init__()
+        self.id = worker_id
+        self.url = url
+
+        self.signals = WorkerSignals()
+
+    @QtCore.pyqtSlot()
+    def run(self):
+        pass
 
         # r = requests.get(self.url)
         #
@@ -295,7 +297,7 @@ class MainWindow(MenuBar):
 
         self.highlight = QtWidgets.QAction(QtGui.QIcon('images/Hlighter.png'), 'Highlight', self)
         navtb.addAction(self.highlight)
-        self.highlight.triggered.connect(self.highlight_xpath)
+        self.highlight.triggered.connect(self.inspect_element)
         navtb.addSeparator()
 
         # self.arrow_up = QtWidgets.QAction(QtGui.QIcon('images/arrow-up-circle.svg'), "Increase Restrictions", self)
@@ -333,9 +335,9 @@ class MainWindow(MenuBar):
         left_spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
         navtb.addWidget(left_spacer)
 
-        self.intellisense_icon = QtWidgets.QAction(QtGui.QIcon('images/purple-cube.svg'), 'Intellisense', self)
-        navtb.addAction(self.intellisense_icon)
-        self.intellisense_icon.triggered.connect(self.inspect_element)
+        # self.intellisense_icon = QtWidgets.QAction(QtGui.QIcon('images/purple-cube.svg'), 'Intellisense', self)
+        # navtb.addAction(self.intellisense_icon)
+        # self.intellisense_icon.triggered.connect(self.inspect_element)
 
         self.run = QtWidgets.QAction(QtGui.QIcon('images/play-hot.png'), 'Run', self)
         navtb.addAction(self.run)
@@ -520,20 +522,28 @@ class MainWindow(MenuBar):
     def run_scraper(self):
         self.treemodel_view.transverse_tree()
         print('MY_DATA: ')
-        for d in my_data[1:]:
+        for d in my_data:
             print(d)
 
         print("\n\n============================INITIALIZING SPIDER============================\n\n")
         time.sleep(3)
-        self.exec_spider()
+        print('DONE')
+        # self.exec_spider()
 
-    def exec_spider(self):
-        SpiderRunner.run_spider(file_format='csv',
-                                uri='books_scraped.csv',
-                                url=my_data[1].get('url_name'),
-                                domains=urlparse(my_data[1].get('url_name')).netloc,
-                                tree_dict=my_data[1:]
-                                )
+    # def exec_spider(self):
+    #     print(self.filename,
+    #           self.project_name,
+    #           self.project_url,
+    #           self.file_format,
+    #           self.project_uri,
+    #           self.domain)
+
+        # SpiderRunner.run_spider(file_format='csv',
+        #                         uri='kijiji_honda.csv',
+        #                         url=my_data[1].get('url_name'),
+        #                         domains=urlparse(my_data[1].get('url_name')).netloc,
+        #                         tree_dict=my_data[1:]
+        #                         )
 
     #     """This is the execute button"""
     #     worker = Worker(n, url)

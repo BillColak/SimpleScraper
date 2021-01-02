@@ -706,13 +706,15 @@ QComboBox::drop-down
 
 QComboBox::down-arrow
 {
-    image: url(:/dark_blue/img/down_arrow_disabled.png);
+    /*image: url(:/dark_blue/img/down_arrow_disabled.png);*/
+    image: url(images/down_arrow.png);
 }
 
 QComboBox::down-arrow:on, QComboBox::down-arrow:hover,
 QComboBox::down-arrow:focus
 {
-    image: url(:/dark_blue/img/down_arrow.png);
+    /*image: url(:/dark_blue/img/down_arrow.png);*/
+    image: url(images/down_arrow.png);
 }
 
 QPushButton:pressed

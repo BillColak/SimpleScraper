@@ -10,16 +10,6 @@ from test_data import BOOKS, craigs_list
 
 
 DEBUG = True
-# allowed_domains = ['books.toscrape.com']
-# start_urls = ['http://books.toscrape.com/']
-
-# file_format = 'csv'
-# uri = 'test.csv'
-
-# parse_link_xpath = '//h3/a/@href'
-# pagination_xpath = '//a[text()="next"]/@href'
-# output_iter_xpath = {'title': '//h1/text()', 'price': '//p[normalize-space(@class)="price_color"]/text()'}
-# combodict = {'Item': 1, 'Multi-Item': 2, 'Pagination': 3, 'Follow-Link': 4, 'Follow-All-Links': 5}
 
 
 class SimpleSpider(scrapy.Spider):
@@ -182,14 +172,14 @@ class SpiderRunner(SimpleSpider):
 #                         tree_dict=my_data_full_path)
 
 
-from urllib.parse import urlparse
-
-SpiderRunner.run_spider(file_format='csv',
-                        uri='craigslist_honda.csv',
-                        url=craigs_list[0].get('url_name'),
-                        domains=urlparse(craigs_list[0].get('url_name')).netloc,
-                        tree_dict=craigs_list
-                        )
+# from urllib.parse import urlparse
+#
+# SpiderRunner.run_spider(file_format='csv',
+#                         uri='craigslist_honda.csv',
+#                         url=craigs_list[0].get('url_name'),
+#                         domains=urlparse(craigs_list[0].get('url_name')).netloc,
+#                         tree_dict=craigs_list
+#                         )
 
 
 

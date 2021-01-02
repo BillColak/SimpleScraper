@@ -1,18 +1,10 @@
 # import requests
 # from urllib.parse import urljoin
 import re
-from lxml import html as lxml_html
+# from lxml import html as lxml_html
 # from string import Template as form_Template
 
 # //a[normalize-space(@class)='result-title hdrlnk']/@href
-
-header = {'User-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
-                        'Chrome/85.0.4183.121 Safari/537.36'}
-
-colors = {
-    'yellow': '#FDFF47',
-    'blue': '#2896FF'
-}
 
 
 # def resp(url):
@@ -20,54 +12,51 @@ colors = {
 #     response.close()
 #     return response
 
-
-def return_element_list_by_xpath(element_source: lxml_html.HtmlElement, xpath_expression: str, attribute=None) -> list:
-    """ If attribute is set to text() it will get text -> item:combobox, else it will return a list"""
-    expression_list = []
-
-    if attribute is not None:
-        xpath_expression = xpath_expression + attribute
-
-    expression = element_source.xpath(xpath_expression)
-    for item in expression:
-        if isinstance(item, lxml_html.HtmlElement):
-            expression_list.append(str(lxml_html.tostring(item, pretty_print=True, with_tail=False), 'utf-8'))
-        else:
-            expression_list.append(item)
-    return expression_list
-
-
-def xpath_root(page_source) -> lxml_html.HtmlElement:
-    return lxml_html.fromstring(html=page_source)
-
-
-def xpath_builder(path_item, attributes, localname, class_name, level=1, multi_item=False):
-    # TODO automate by checking for li,lu,rows etc..?
-
-    # TODO keep working on improving this method in identifying items.
-    path_item = str(path_item).split('/')[1:][-int(level):]
-    xpath_ = "/".join(path_item)
-
-    if class_name != "":
-        query_ = localname + '.' + class_name.replace(' ', '.')
-    else:
-        query_ = localname
-
-    if multi_item:
-        if attributes:
-            element_path = '[' + ' and '.join([f'@{key}' for key in attributes.keys()]) + ']'
-            query_ += "".join([f'[{key}]' for key in attributes.keys()])
-        else:
-            element_path = ""
-    else:
-        if attributes:
-            element_path = '[' + ' and '.join([f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items()]) + ']'
-            query_ += "".join([f'[{key}="{value}"]' for key, value in attributes.items()])
-        else:
-            element_path = ""
-
-    xpath_ += element_path
-    return '//' + xpath_, query_, path_item[0]
+#
+# def return_element_list_by_xpath(element_source: lxml_html.HtmlElement, xpath_expression: str, attribute=None) -> list:
+#     """ If attribute is set to text() it will get text -> item:combobox, else it will return a list"""
+#     expression_list = []
+#
+#     if attribute is not None:
+#         xpath_expression = xpath_expression + attribute
+#
+#     expression = element_source.xpath(xpath_expression)
+#     for item in expression:
+#         if isinstance(item, lxml_html.HtmlElement):
+#             expression_list.append(str(lxml_html.tostring(item, pretty_print=True, with_tail=False), 'utf-8'))
+#         else:
+#             expression_list.append(item)
+#     return expression_list
+#
+#
+# def xpath_root(page_source) -> lxml_html.HtmlElement:
+#     return lxml_html.fromstring(html=page_source)
+#
+#
+# def xpath_builder(path_item, attributes, localname, class_name, level=1, multi_item=False):
+#     path_item = str(path_item).split('/')[1:][-int(level):]
+#     xpath_ = "/".join(path_item)
+#
+#     if class_name != "":
+#         query_ = localname + '.' + class_name.replace(' ', '.')
+#     else:
+#         query_ = localname
+#
+#     if multi_item:
+#         if attributes:
+#             element_path = '[' + ' and '.join([f'@{key}' for key in attributes.keys()]) + ']'
+#             query_ += "".join([f'[{key}]' for key in attributes.keys()])
+#         else:
+#             element_path = ""
+#     else:
+#         if attributes:
+#             element_path = '[' + ' and '.join([f'normalize-space(@{key})="{value.strip()}"' for key, value in attributes.items()]) + ']'
+#             query_ += "".join([f'[{key}="{value}"]' for key, value in attributes.items()])
+#         else:
+#             element_path = ""
+#
+#     xpath_ += element_path
+#     return '//' + xpath_, query_, path_item[0]
 
 
 # def single_item(path: str, color: str = colors['yellow']) -> str:
@@ -213,7 +202,3 @@ def get_string_item(value) -> str:
 
 # element = scrape_single_link(path, attrib)
 # scrape_pagination(url, element)
-
-
-
-
